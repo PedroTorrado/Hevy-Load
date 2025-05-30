@@ -1,72 +1,73 @@
-# Workout Data Visualization (Proof of Concept)
+# Workout Data Visualization
 
-This is a proof of concept script that demonstrates how workout data can be visualized using Python and modern web technologies. The script takes workout data from a CSV file and generates an interactive HTML page with data visualization capabilities.
+A web application for visualizing workout data from CSV files.
 
-## Features
+## Setup
 
-- Converts workout data from CSV to an interactive web interface
-- Interactive data table with sorting and filtering capabilities
-- Dynamic chart generation with multiple visualization options:
-  - Line charts
-  - Bar charts
-  - Scatter plots
-- Exercise-specific filtering
-- Option to show only top sets per exercise
-- Date-based visualization with configurable spacing
-- Automatic gap detection in workout history
+### Backend
 
-## Data Source
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
 
-The script works with workout data exported from Hevy.com:
-1. Log into your Hevy.com account
-2. Go to Settings > Export Data
-3. Download your workout data as CSV
-4. Place the downloaded `workouts.csv` file in the same directory as the script
+2. Install dependencies:
+   ```bash
+   pip install flask flask-cors pymongo pandas python-dotenv numpy
+   ```
 
-The script expects the CSV to contain the following data from Hevy:
-- Workout dates and times
-- Exercise names
-- Weight used (in kg)
-- Number of reps
-- Distance (for cardio exercises)
-- Duration (for timed exercises)
-- RPE (Rate of Perceived Exertion) if recorded
+3. Start the backend server:
+   ```bash
+   python app.py
+   ```
 
-The visualization will automatically adapt to show the available data from your Hevy export.
+### Frontend
 
-## Technical Implementation
+1. Navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
 
-The proof of concept uses:
-- Python with pandas for data processing
-- DataTables for interactive table functionality
-- Chart.js for dynamic data visualization
-- Luxon for advanced date handling
-- Modern JavaScript for interactive features
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Start the frontend development server:
+   ```bash
+   npm start
+   ```
 
 ## Usage
 
-1. Ensure you have a `workouts.csv` file with your workout data
-2. Run the script:
-   ```bash
-   python generate_workouts_html.py
-   ```
-3. Open the generated `workouts.html` file in your web browser
+- Upload a CSV file with workout data.
+- Select exercises, chart types, and axes.
+- Toggle options like "Show only top sets" and "Show even date spacing."
 
-## Note
+## Technologies Used
 
-This is a proof of concept implementation and may require additional features, error handling, and optimization for production use. The current implementation focuses on demonstrating the core visualization capabilities and interactive features.
+- **Backend**: Flask, MongoDB, Pandas
+- **Frontend**: React, Material-UI, Chart.js
 
-## Dependencies
+## Features
 
-- Python 3.x
-- pandas and numpy (install using `pip install -r requirements.txt`)
-- A modern web browser with JavaScript enabled
+- Modern React frontend with Material-UI components
+- Interactive data visualization using Chart.js
+- MongoDB database for persistent storage
+- CSV file upload and processing
+- Multiple chart types (Line, Bar, Scatter)
+- Exercise-specific filtering
+- Top set analysis
+- Date-based visualization with configurable spacing
 
-## Installation
+## Development
 
-1. Clone or download this repository
-2. Install the required Python packages:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Follow the Usage instructions above to run the script
+The application is structured as follows:
+- `/frontend` - React application
+- `/backend` - Flask API server
+- `/backend/app.py` - Main Flask application
+- `/frontend/src/App.tsx` - Main React component
+
+## Contributing
+
+Feel free to submit issues and enhancement requests!
