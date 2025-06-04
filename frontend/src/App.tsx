@@ -457,7 +457,7 @@ function App() {
             color: 'primary.main',
             textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
           }}>
-            Workout Data Visualization
+            Hevy - Load
           </Typography>
 
           <Box sx={{ 
