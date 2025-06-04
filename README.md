@@ -2,6 +2,35 @@
 
 A web application for visualizing workout data from CSV files.
 
+## Prerequisites
+
+### MongoDB Setup (using Podman)
+
+1. Install Podman (if not already installed):
+   ```bash
+   sudo dnf install -y podman
+   ```
+
+2. Run MongoDB in a container:
+   ```bash
+   podman run -d --name mongodb -p 27017:27017 -v mongodb_data:/data/db mongo:latest
+   ```
+
+3. Verify MongoDB is running:
+   ```bash
+   podman ps
+   ```
+
+4. To stop MongoDB:
+   ```bash
+   podman stop mongodb
+   ```
+
+5. To start MongoDB again:
+   ```bash
+   podman start mongodb
+   ```
+
 ## Setup
 
 ### Backend
@@ -48,6 +77,14 @@ A web application for visualizing workout data from CSV files.
 
 - **Backend**: Flask, MongoDB, Pandas
 - **Frontend**: React, Material-UI, Chart.js
+
+## Data Storage
+
+The application uses MongoDB to store workout data. The database is local to your machine and is not included in the GitHub repository. When deploying the application:
+
+1. Install MongoDB on the deployment server
+2. Configure MongoDB connection settings in your environment variables
+3. Ensure MongoDB service is running before starting the application
 
 ## Features
 

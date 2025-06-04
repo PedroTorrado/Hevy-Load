@@ -1,2 +1,3 @@
 pandas>=2.0.0
-numpy>=1.24.0  # Required by pandas 
+numpy>=1.24.0  # Required by pandas
+python-dotenv>=1.0.0  # For handling credentials securely 

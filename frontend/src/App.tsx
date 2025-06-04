@@ -29,7 +29,8 @@ import {
   Legend,
   ChartOptions,
   Filler,
-  TimeScale
+  TimeScale,
+  ChartData
 } from 'chart.js';
 import 'chartjs-adapter-date-fns';
 import { format } from 'date-fns';
@@ -94,14 +95,18 @@ interface Workout {
 function App() {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [exercises, setExercises] = useState<string[]>([]);
-  const [selectedExercise, setSelectedExercise] = useState<string>('All');
+  const [selectedExercise, setSelectedExercise] = useState<string>(() => {
+    return localStorage.getItem('selectedExercise') || 'Bench Press (Barbell)';
+  });
   const [chartType, setChartType] = useState<'line' | 'bar' | 'scatter'>('line');
   const [xAxis, setXAxis] = useState<string>('start_time');
   const [yAxis, setYAxis] = useState<string>('weight_kg');
-  const [showTopSets, setShowTopSets] = useState<boolean>(false);
-  const [evenDateSpacing, setEvenDateSpacing] = useState<boolean>(false);
+  const [showTopSets, setShowTopSets] = useState<boolean>(true);
+  const [evenDateSpacing, setEvenDateSpacing] = useState<boolean>(true);
+  const [showOnlySingleReps, setShowOnlySingleReps] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [workoutData, setWorkoutData] = useState<Workout[]>([]);
 
   useEffect(() => {
     fetchExercises();
@@ -111,12 +116,83 @@ function App() {
     fetchWorkouts();
   }, [selectedExercise]);
 
+  // Separate effect for handling single rep toggle
+  useEffect(() => {
+    if (workouts.length > 0) {
+      setWorkoutData(workouts);
+    }
+  }, [showOnlySingleReps, workouts]);
+
+  const calculatePRs = useMemo(() => {
+    if (!workoutData.length) return [];
+    
+    // Get fresh data for the selected exercise
+    const exerciseWorkouts = workoutData
+      .filter(w => w.exercise_title === selectedExercise && w.weight_kg > 0 && w.reps > 0)
+      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+    
+    if (!exerciseWorkouts.length) return [];
+
+    // Debug logging for squat data
+    if (selectedExercise.toLowerCase().includes('squat')) {
+      console.log('Squat workouts before filtering:', exerciseWorkouts);
+    }
+    
+    // Filter for single reps if the toggle is on
+    const filteredWorkouts = showOnlySingleReps 
+      ? exerciseWorkouts.filter(w => w.reps === 1)
+      : exerciseWorkouts;
+    
+    // Debug logging for squat data
+    if (selectedExercise.toLowerCase().includes('squat')) {
+      console.log('Squat workouts after filtering:', filteredWorkouts);
+    }
+    
+    // Track PRs using a Map to prevent duplicates
+    const prMap = new Map<number, { date: string; weight: number; reps: number }>();
+    let currentMaxWeight = 0;
+    
+    filteredWorkouts.forEach(workout => {
+      if (workout.weight_kg > currentMaxWeight) {
+        currentMaxWeight = workout.weight_kg;
+        prMap.set(workout.weight_kg, {
+          date: workout.start_time,
+          weight: workout.weight_kg,
+          reps: workout.reps
+        });
+      }
+    });
+    
+    // Debug logging for squat data
+    if (selectedExercise.toLowerCase().includes('squat')) {
+      console.log('Squat PRs before sorting:', Array.from(prMap.values()));
+    }
+    
+    // Convert to array and sort by weight (highest first)
+    const sortedPRs = Array.from(prMap.values())
+      .sort((a, b) => b.weight - a.weight);
+
+    // Debug logging for squat data
+    if (selectedExercise.toLowerCase().includes('squat')) {
+      console.log('Final sorted PRs:', sortedPRs);
+    }
+
+    return sortedPRs;
+  }, [workoutData, selectedExercise, showOnlySingleReps]);
+
   const fetchExercises = async () => {
     try {
       setLoading(true);
       setError(null);
       const response = await axios.get('http://localhost:5000/api/exercises');
-      setExercises(response.data);
+      const exercisesList = response.data;
+      setExercises(exercisesList);
+      // If the saved exercise exists in the list, use it, otherwise use Bench Press
+      if (exercisesList.includes(selectedExercise)) {
+        setSelectedExercise(selectedExercise);
+      } else if (exercisesList.includes('Bench Press (Barbell)')) {
+        setSelectedExercise('Bench Press (Barbell)');
+      }
     } catch (error) {
       console.error('Error fetching exercises:', error);
       setError('Failed to fetch exercises. Please try again.');
@@ -131,7 +207,12 @@ function App() {
       setError(null);
       console.log('Fetching workouts for exercise:', selectedExercise);
       const response = await axios.get(`http://localhost:5000/api/workouts?exercise=${selectedExercise}`);
-      console.log('Received workouts:', response.data);
+      
+      // Debug logging for squat data
+      if (selectedExercise.toLowerCase().includes('squat')) {
+        console.log('Raw squat data from API:', response.data);
+      }
+      
       if (response.data.error) {
         throw new Error(response.data.error);
       }
@@ -139,10 +220,12 @@ function App() {
         throw new Error('Invalid data format received from server');
       }
       setWorkouts(response.data);
+      setWorkoutData(response.data);
     } catch (error) {
       console.error('Error fetching workouts:', error);
       setError('Failed to fetch workouts. Please try again.');
       setWorkouts([]);
+      setWorkoutData([]);
     } finally {
       setLoading(false);
     }
@@ -175,7 +258,6 @@ function App() {
   const getChartData = useMemo(() => {
     if (!workouts.length) {
       return {
-        labels: [],
         datasets: [{
           label: `${yAxis} vs ${xAxis}`,
           data: [],
@@ -196,11 +278,48 @@ function App() {
       });
       filteredWorkouts = Array.from(topSets.values());
     }
+
+    // Sort workouts by date
     filteredWorkouts.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
-    const labels = filteredWorkouts.map(w => w[xAxis as keyof Workout]);
-    const data = filteredWorkouts.map(w => w[yAxis as keyof Workout]);
+
+    // If even date spacing is enabled and x-axis is start_time
+    if (evenDateSpacing && xAxis === 'start_time') {
+      const dates = filteredWorkouts.map(w => new Date(w.start_time));
+      const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
+      const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+      
+      // Create evenly spaced dates
+      const numPoints = filteredWorkouts.length;
+      const timeStep = (maxDate.getTime() - minDate.getTime()) / (numPoints - 1);
+      
+      // Create new array with evenly spaced dates
+      const data = filteredWorkouts.map((workout, index) => ({
+        x: new Date(minDate.getTime() + timeStep * index),
+        y: Number(workout[yAxis as keyof Workout]) || 0
+      }));
+
+      return {
+        datasets: [{
+          label: `${yAxis} vs ${xAxis}`,
+          data,
+          borderColor: '#1976d2',
+          backgroundColor: 'rgba(25, 118, 210, 0.2)',
+        }]
+      };
+    }
+
+    // For non-even date spacing or non-time x-axis
+    const data = filteredWorkouts.map(w => {
+      const xValue = w[xAxis as keyof Workout];
+      const yValue = w[yAxis as keyof Workout];
+      
+      return {
+        x: xAxis === 'start_time' ? new Date(xValue as string) : Number(xValue) || 0,
+        y: Number(yValue) || 0
+      };
+    });
+
     return {
-      labels,
       datasets: [{
         label: `${yAxis} vs ${xAxis}`,
         data,
@@ -208,9 +327,32 @@ function App() {
         backgroundColor: 'rgba(25, 118, 210, 0.2)',
       }]
     };
-  }, [workouts, showTopSets, xAxis, yAxis]);
+  }, [workouts, showTopSets, xAxis, yAxis, evenDateSpacing]);
 
-  const chartOptions = {
+  const getLineChartData = () => getChartData as ChartData<'line', { x: Date | number; y: number }[]>;
+  const getBarChartData = () => getChartData as ChartData<'bar', { x: Date | number; y: number }[]>;
+  const getScatterChartData = () => getChartData as ChartData<'scatter', { x: Date | number; y: number }[]>;
+
+  const getAxisLabel = (axis: string) => {
+    switch (axis) {
+      case 'start_time':
+        return 'Date';
+      case 'weight_kg':
+        return 'Weight (kg)';
+      case 'reps':
+        return 'Reps';
+      case 'distance_km':
+        return 'Distance (km)';
+      case 'duration_seconds':
+        return 'Duration (seconds)';
+      case 'rpe':
+        return 'RPE';
+      default:
+        return axis;
+    }
+  };
+
+  const chartOptions: ChartOptions<'line' | 'bar' | 'scatter'> = {
     responsive: true,
     plugins: {
       legend: {
@@ -218,9 +360,90 @@ function App() {
       },
       title: {
         display: true,
-        text: `${yAxis} vs ${xAxis}`,
+        text: `${getAxisLabel(yAxis)} vs ${getAxisLabel(xAxis)}`,
       },
     },
+    scales: {
+      x: xAxis === 'start_time' ? {
+        type: 'time' as const,
+        time: {
+          unit: 'day',
+          displayFormats: {
+            day: 'MMM d, yyyy'
+          },
+          tooltipFormat: 'MMM d, yyyy'
+        },
+        title: {
+          display: true,
+          text: getAxisLabel(xAxis)
+        },
+        ticks: {
+          source: 'auto',
+          autoSkip: true,
+          maxRotation: 45,
+          minRotation: 45
+        }
+      } : {
+        type: 'linear' as const,
+        title: {
+          display: true,
+          text: getAxisLabel(xAxis)
+        }
+      },
+      y: {
+        type: 'linear' as const,
+        title: {
+          display: true,
+          text: getAxisLabel(yAxis)
+        }
+      }
+    }
+  };
+
+  // Add function to calculate one rep max PRs
+  const calculateOneRepMaxPRs = useMemo(() => {
+    if (!workouts.length) return [];
+    
+    // Get fresh data from the database for the selected exercise
+    const exerciseWorkouts = workouts
+      .filter(w => w.exercise_title === selectedExercise)
+      .map(w => ({
+        date: w.start_time,
+        weight: w.weight_kg,
+        reps: w.reps
+      }))
+      .filter(w => w.weight > 0 && w.reps > 0); // Basic validation
+    
+    if (!exerciseWorkouts.length) return [];
+    
+    // Create a Map to track the first occurrence of each 1RM
+    const firstOccurrence = new Map<number, { date: string; weight: number; reps: number; oneRepMax: number }>();
+    
+    // Sort by date (oldest first) to ensure we get the first occurrence
+    exerciseWorkouts
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .forEach(workout => {
+        // Brzycki formula: 1RM = weight × (36 / (37 - reps))
+        const calculatedOneRepMax = workout.weight * (36 / (37 - workout.reps));
+        const oneRepMax = Math.max(calculatedOneRepMax, workout.weight);
+        const roundedOneRepMax = Math.round(oneRepMax);
+        
+        if (!firstOccurrence.has(roundedOneRepMax)) {
+          firstOccurrence.set(roundedOneRepMax, {
+            ...workout,
+            oneRepMax: roundedOneRepMax
+          });
+        }
+      });
+    
+    // Convert to array and sort by 1RM (highest first)
+    return Array.from(firstOccurrence.values())
+      .sort((a, b) => b.oneRepMax - a.oneRepMax);
+  }, [workouts, selectedExercise]);
+
+  // Update the checkbox handler
+  const handleSingleRepToggle = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setShowOnlySingleReps(event.target.checked);
   };
 
   return (
@@ -236,6 +459,27 @@ function App() {
           }}>
             Workout Data Visualization
           </Typography>
+
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            mb: 4,
+            gap: 2
+          }}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => window.open('https://hevy.com/settings?export', '_blank')}
+              sx={{
+                backgroundColor: '#1976d2',
+                '&:hover': {
+                  backgroundColor: '#1565c0',
+                },
+              }}
+            >
+              Export from Hevy
+            </Button>
+          </Box>
 
           {error && (
             <Typography color="error" sx={{ mb: 2, textAlign: 'center' }}>
@@ -288,10 +532,13 @@ function App() {
                 <Select
                   value={selectedExercise}
                   label="Exercise"
-                  onChange={(e) => setSelectedExercise(e.target.value)}
+                  onChange={(e) => {
+                    const newExercise = e.target.value;
+                    setSelectedExercise(newExercise);
+                    localStorage.setItem('selectedExercise', newExercise);
+                  }}
                   disabled={loading}
                 >
-                  <MenuItem value="All">All Exercises</MenuItem>
                   {exercises.map((exercise) => (
                     <MenuItem key={exercise} value={exercise}>
                       {exercise}
@@ -376,6 +623,19 @@ function App() {
                 label="Show even date spacing"
               />
             </Box>
+
+            <Box sx={{ gridColumn: { xs: 'span 12', md: 'span 6' } }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={showOnlySingleReps}
+                    onChange={handleSingleRepToggle}
+                    disabled={loading}
+                  />
+                }
+                label="Show only single-rep PRs"
+              />
+            </Box>
           </Box>
 
           <Paper 
@@ -405,13 +665,103 @@ function App() {
                 </Box>
               ) : (
                 <>
-                  {chartType === 'line' && <Line data={getChartData} options={chartOptions} />}
-                  {chartType === 'bar' && <Bar data={getChartData} options={chartOptions} />}
-                  {chartType === 'scatter' && <Scatter data={getChartData} options={chartOptions} />}
+                  {chartType === 'line' && <Line data={getLineChartData()} options={chartOptions} />}
+                  {chartType === 'bar' && <Bar data={getBarChartData()} options={chartOptions} />}
+                  {chartType === 'scatter' && <Scatter data={getScatterChartData()} options={chartOptions} />}
                 </>
               )}
             </Box>
           </Paper>
+
+          {/* Add PRs Section */}
+          {workouts.length > 0 && (
+            <Paper 
+              sx={{ 
+                p: 3,
+                mt: 3,
+                borderRadius: 2,
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+                background: 'linear-gradient(145deg, #1e1e1e 0%, #2d2d2d 100%)',
+              }}
+            >
+              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+                Personal Records
+              </Typography>
+              {calculatePRs.length > 0 ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {calculatePRs.map((pr) => (
+                    <Box 
+                      key={`${pr.date}-${pr.weight}-${pr.reps}`}
+                      sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        p: 1,
+                        borderRadius: 1,
+                        backgroundColor: 'rgba(144, 202, 249, 0.1)',
+                      }}
+                    >
+                      <Typography>
+                        {format(new Date(pr.date), 'MMM d, yyyy')}
+                      </Typography>
+                      <Typography sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                        {pr.weight} kg × {pr.reps} reps
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              ) : (
+                <Typography color="text.secondary">
+                  No PRs found for this exercise.
+                </Typography>
+              )}
+            </Paper>
+          )}
+
+          {/* Add One Rep Max PRs Section */}
+          {workouts.length > 0 && (
+            <Paper 
+              sx={{ 
+                p: 3,
+                mt: 3,
+                borderRadius: 2,
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+                background: 'linear-gradient(145deg, #1e1e1e 0%, #2d2d2d 100%)',
+              }}
+            >
+              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+                Calculated One Rep Max PRs
+              </Typography>
+              {calculateOneRepMaxPRs.length > 0 ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {calculateOneRepMaxPRs.map((pr) => (
+                    <Box 
+                      key={pr.date} 
+                      sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        p: 1,
+                        borderRadius: 1,
+                        backgroundColor: 'rgba(144, 202, 249, 0.1)',
+                      }}
+                    >
+                      <Typography>
+                        {format(new Date(pr.date), 'MMM d, yyyy')}
+                      </Typography>
+                      <Typography sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                        {pr.weight} kg × {pr.reps} reps (1RM: {pr.oneRepMax} kg)
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              ) : (
+                <Typography color="text.secondary">
+                  No one rep max PRs found for this exercise.
+                </Typography>
+              )}
+            </Paper>
+          )}
         </Box>
       </Container>
     </ThemeProvider>
