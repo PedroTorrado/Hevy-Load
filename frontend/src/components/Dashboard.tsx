@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { 
   Container, 
   Box, 
@@ -36,9 +36,7 @@ import {
 import 'chartjs-adapter-date-fns';
 import { format } from 'date-fns';
 import axios from 'axios';
-import WorkoutDetails from './components/WorkoutDetails';
-import LandingPage from './components/LandingPage';
-import Dashboard from './components/Dashboard';
+import WorkoutDetails from './WorkoutDetails';
 
 // Register ChartJS components
 ChartJS.register(
@@ -96,7 +94,7 @@ interface Workout {
   rpe?: number;
 }
 
-function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts: React.Dispatch<React.SetStateAction<Workout[]>> }) {
+function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts: React.Dispatch<React.SetStateAction<Workout[]>> }) {
   const navigate = useNavigate();
   const [exercises, setExercises] = useState<string[]>([]);
   const [selectedExercise, setSelectedExercise] = useState<string>(() => {
@@ -486,6 +484,9 @@ function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkout
             mb: 4,
             color: 'primary.main',
             textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
+            fontSize: '2.5rem',
+            fontWeight: 700,
+            letterSpacing: '0.5px',
           }}>
             Hevy - Load
           </Typography>
@@ -501,10 +502,16 @@ function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkout
               color="primary"
               onClick={() => window.open('https://hevy.com/settings?export', '_blank')}
               sx={{
-                backgroundColor: '#1976d2',
+                background: 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
+                boxShadow: '0 3px 5px 2px rgba(144, 202, 249, .3)',
+                padding: '10px 24px',
+                fontSize: '1.1rem',
                 '&:hover': {
-                  backgroundColor: '#1565c0',
+                  background: 'linear-gradient(45deg, #64b5f6 30%, #42a5f5 90%)',
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 5px 15px rgba(144, 202, 249, .4)',
                 },
+                transition: 'all 0.2s ease-in-out',
               }}
             >
               Export from Hevy
@@ -512,7 +519,14 @@ function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkout
           </Box>
 
           {error && (
-            <Typography color="error" sx={{ mb: 2, textAlign: 'center' }}>
+            <Typography color="error" sx={{ 
+              mb: 2, 
+              textAlign: 'center',
+              padding: '12px',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(211, 47, 47, 0.1)',
+              border: '1px solid rgba(211, 47, 47, 0.2)',
+            }}>
               {error}
             </Typography>
           )}
@@ -523,8 +537,24 @@ function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkout
             gap: 3, 
             mb: 4,
             '& .MuiFormControl-root': {
-              backgroundColor: 'background.paper',
-              borderRadius: 1,
+              backgroundColor: 'rgba(144, 202, 249, 0.05)',
+              borderRadius: 2,
+              transition: 'all 0.2s ease-in-out',
+              '&:hover': {
+                backgroundColor: 'rgba(144, 202, 249, 0.08)',
+              },
+            },
+            '& .MuiInputLabel-root': {
+              color: 'rgba(255, 255, 255, 0.7)',
+            },
+            '& .MuiSelect-select': {
+              color: 'white',
+            },
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: 'rgba(144, 202, 249, 0.2)',
+            },
+            '&:hover .MuiOutlinedInput-notchedOutline': {
+              borderColor: 'rgba(144, 202, 249, 0.4)',
             },
           }}>
             <Box sx={{ gridColumn: 'span 12', textAlign: 'center' }}>
@@ -548,7 +578,10 @@ function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkout
                     boxShadow: '0 3px 5px 2px rgba(144, 202, 249, .3)',
                     '&:hover': {
                       background: 'linear-gradient(45deg, #64b5f6 30%, #42a5f5 90%)',
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 5px 15px rgba(144, 202, 249, .4)',
                     },
+                    transition: 'all 0.2s ease-in-out',
                   }}
                 >
                   {loading ? 'Uploading...' : 'Upload Workout CSV'}
@@ -628,7 +661,21 @@ function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkout
               </FormControl>
             </Box>
 
-            <Box sx={{ gridColumn: { xs: 'span 12', md: 'span 6' } }}>
+            <Box sx={{ 
+              gridColumn: { xs: 'span 12', md: 'span 6' },
+              display: 'flex',
+              gap: 2,
+              '& .MuiFormControlLabel-root': {
+                flex: 1,
+                backgroundColor: 'rgba(144, 202, 249, 0.05)',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                transition: 'all 0.2s ease-in-out',
+                '&:hover': {
+                  backgroundColor: 'rgba(144, 202, 249, 0.08)',
+                },
+              },
+            }}>
               <FormControlLabel
                 control={
                   <Switch
@@ -640,9 +687,6 @@ function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkout
                 }
                 label="Show only top sets"
               />
-            </Box>
-
-            <Box sx={{ gridColumn: { xs: 'span 12', md: 'span 6' } }}>
               <FormControlLabel
                 control={
                   <Switch
@@ -663,6 +707,7 @@ function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkout
               borderRadius: 2,
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
               background: 'linear-gradient(145deg, #1e1e1e 0%, #2d2d2d 100%)',
+              border: '1px solid rgba(144, 202, 249, 0.1)',
             }}
           >
             <Box sx={{ height: 500, position: 'relative' }}>
@@ -677,6 +722,8 @@ function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkout
                   alignItems: 'center', 
                   height: '100%',
                   color: 'text.secondary',
+                  backgroundColor: 'rgba(144, 202, 249, 0.05)',
+                  borderRadius: 2,
                 }}>
                   <Typography variant="h6">
                     No data available. Please upload a CSV file.
@@ -701,10 +748,29 @@ function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkout
                 borderRadius: 2,
                 boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
                 background: 'linear-gradient(145deg, #1e1e1e 0%, #2d2d2d 100%)',
+                border: '1px solid rgba(144, 202, 249, 0.1)',
               }}
             >
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6" sx={{ color: 'primary.main' }}>
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                mb: 2,
+                '& .MuiFormControlLabel-root': {
+                  backgroundColor: 'rgba(144, 202, 249, 0.05)',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  transition: 'all 0.2s ease-in-out',
+                  '&:hover': {
+                    backgroundColor: 'rgba(144, 202, 249, 0.08)',
+                  },
+                },
+              }}>
+                <Typography variant="h6" sx={{ 
+                  color: 'primary.main',
+                  fontWeight: 600,
+                  textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
+                }}>
                   Personal Records
                 </Typography>
                 <FormControlLabel
@@ -729,26 +795,32 @@ function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkout
                         display: 'flex', 
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        p: 1,
+                        p: 1.5,
                         borderRadius: 1,
                         backgroundColor: 'rgba(144, 202, 249, 0.1)',
                         cursor: 'pointer',
+                        transition: 'all 0.2s ease-in-out',
                         '&:hover': {
                           backgroundColor: 'rgba(144, 202, 249, 0.2)',
+                          transform: 'translateX(4px)',
                         },
                       }}
                     >
                       <Typography>
                         {format(new Date(pr.date), 'MMM d, yyyy')}
                       </Typography>
-                      <Typography sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                      <Typography sx={{ 
+                        fontWeight: 'bold', 
+                        color: 'primary.main',
+                        textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
+                      }}>
                         {pr.weight} kg × {pr.reps} reps
                       </Typography>
                     </Box>
                   ))}
                 </Box>
               ) : (
-                <Typography color="text.secondary">
+                <Typography color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
                   No PRs found for this exercise.
                 </Typography>
               )}
@@ -764,9 +836,15 @@ function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkout
                 borderRadius: 2,
                 boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
                 background: 'linear-gradient(145deg, #1e1e1e 0%, #2d2d2d 100%)',
+                border: '1px solid rgba(144, 202, 249, 0.1)',
               }}
             >
-              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+              <Typography variant="h6" sx={{ 
+                mb: 2, 
+                color: 'primary.main',
+                fontWeight: 600,
+                textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
+              }}>
                 Calculated One Rep Max PRs
               </Typography>
               {calculateOneRepMaxPRs.length > 0 ? (
@@ -779,26 +857,32 @@ function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkout
                         display: 'flex', 
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        p: 1,
+                        p: 1.5,
                         borderRadius: 1,
                         backgroundColor: 'rgba(144, 202, 249, 0.1)',
                         cursor: 'pointer',
+                        transition: 'all 0.2s ease-in-out',
                         '&:hover': {
                           backgroundColor: 'rgba(144, 202, 249, 0.2)',
+                          transform: 'translateX(4px)',
                         },
                       }}
                     >
                       <Typography>
                         {format(new Date(pr.date), 'MMM d, yyyy')}
                       </Typography>
-                      <Typography sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                      <Typography sx={{ 
+                        fontWeight: 'bold', 
+                        color: 'primary.main',
+                        textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
+                      }}>
                         {pr.weight} kg × {pr.reps} reps (1RM: {pr.oneRepMax} kg)
                       </Typography>
                     </Box>
                   ))}
                 </Box>
               ) : (
-                <Typography color="text.secondary">
+                <Typography color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
                   No one rep max PRs found for this exercise.
                 </Typography>
               )}
@@ -810,45 +894,4 @@ function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkout
   );
 }
 
-function App() {
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchWorkouts = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await axios.get('http://localhost:5000/api/workouts');
-      if (response.data.error) {
-        throw new Error(response.data.error);
-      }
-      if (!Array.isArray(response.data)) {
-        throw new Error('Invalid data format received from server');
-      }
-      setWorkouts(response.data);
-    } catch (error) {
-      console.error('Error fetching workouts:', error);
-      setError('Failed to fetch workouts. Please try again.');
-      setWorkouts([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchWorkouts();
-  }, []);
-
-  return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/dashboard" element={<Dashboard workouts={workouts} setWorkouts={setWorkouts} />} />
-        <Route path="/workout/:date" element={<WorkoutDetails workouts={workouts} />} />
-      </Routes>
-    </Router>
-  );
-}
-
-export default App;
+export default Dashboard; 

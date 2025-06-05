@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -9,9 +9,10 @@ import {
   ThemeProvider,
   createTheme,
   CssBaseline,
-  Divider
+  Divider,
+  IconButton
 } from '@mui/material';
-import { format } from 'date-fns';
+import { format, addDays, subDays } from 'date-fns';
 
 interface Workout {
   start_time: string;
@@ -62,6 +63,36 @@ function WorkoutDetails({ workouts }: WorkoutDetailsProps) {
   const { date } = useParams<{ date: string }>();
   const navigate = useNavigate();
 
+  // Get all unique workout dates
+  const workoutDates = useMemo(() => {
+    const dates = workouts.map(w => {
+      const d = new Date(w.start_time);
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString();
+    });
+    return Array.from(new Set(dates)).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+  }, [workouts]);
+
+  // Find the next and previous workout dates
+  const { prevDate, nextDate } = useMemo(() => {
+    const currentDate = new Date(date!);
+    const currentDateStr = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      currentDate.getDate()
+    ).toISOString();
+
+    const currentIndex = workoutDates.findIndex(d => d === currentDateStr);
+    
+    if (currentIndex === -1) {
+      return { prevDate: null, nextDate: null };
+    }
+
+    return {
+      prevDate: currentIndex > 0 ? workoutDates[currentIndex - 1] : null,
+      nextDate: currentIndex < workoutDates.length - 1 ? workoutDates[currentIndex + 1] : null
+    };
+  }, [workoutDates, date]);
+
   // Filter workouts for the selected date and sort by start_time
   const dateWorkouts = workouts
     .filter(workout => {
@@ -108,18 +139,96 @@ function WorkoutDetails({ workouts }: WorkoutDetailsProps) {
             Workout Details
           </Typography>
 
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={() => navigate('/')}
-            sx={{ mb: 4 }}
-          >
-            Back to Dashboard
-          </Button>
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            mb: 4 
+          }}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => navigate('/')}
+              sx={{
+                background: 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
+                boxShadow: '0 3px 5px 2px rgba(144, 202, 249, .3)',
+                '&:hover': {
+                  background: 'linear-gradient(45deg, #64b5f6 30%, #42a5f5 90%)',
+                },
+              }}
+            >
+              Back to Dashboard
+            </Button>
 
-          <Typography variant="h5" sx={{ mb: 1, color: 'primary.main' }}>
-            {format(new Date(date!), 'MMMM d, yyyy')}
-          </Typography>
+            <Box sx={{ 
+              display: 'flex', 
+              gap: 2, 
+              alignItems: 'center',
+              background: 'linear-gradient(145deg, rgba(144, 202, 249, 0.1) 0%, rgba(144, 202, 249, 0.05) 100%)',
+              padding: '8px 16px',
+              borderRadius: '12px',
+              border: '1px solid rgba(144, 202, 249, 0.2)',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
+            }}>
+              <Button
+                onClick={() => prevDate && navigate(`/workout/${prevDate}`)}
+                disabled={!prevDate}
+                sx={{
+                  minWidth: '40px',
+                  height: '40px',
+                  color: 'primary.main',
+                  fontSize: '1.5rem',
+                  fontWeight: 'bold',
+                  borderRadius: '10px',
+                  transition: 'all 0.2s ease-in-out',
+                  '&:hover': {
+                    backgroundColor: 'rgba(144, 202, 249, 0.2)',
+                    transform: 'translateX(-2px)',
+                  },
+                  '&.Mui-disabled': {
+                    color: 'rgba(255, 255, 255, 0.2)',
+                  },
+                }}
+              >
+                ←
+              </Button>
+              <Typography 
+                variant="h5" 
+                sx={{ 
+                  color: 'primary.main',
+                  fontWeight: 600,
+                  textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
+                  minWidth: '200px',
+                  textAlign: 'center',
+                }}
+              >
+                {format(new Date(date!), 'MMMM d, yyyy')}
+              </Typography>
+              <Button
+                onClick={() => nextDate && navigate(`/workout/${nextDate}`)}
+                disabled={!nextDate}
+                sx={{
+                  minWidth: '40px',
+                  height: '40px',
+                  color: 'primary.main',
+                  fontSize: '1.5rem',
+                  fontWeight: 'bold',
+                  borderRadius: '10px',
+                  transition: 'all 0.2s ease-in-out',
+                  '&:hover': {
+                    backgroundColor: 'rgba(144, 202, 249, 0.2)',
+                    transform: 'translateX(2px)',
+                  },
+                  '&.Mui-disabled': {
+                    color: 'rgba(255, 255, 255, 0.2)',
+                  },
+                }}
+              >
+                →
+              </Button>
+            </Box>
+          </Box>
+
           {workoutStartTime && (
             <Typography variant="subtitle1" sx={{ mb: 3, color: 'text.secondary' }}>
               Workout started at {workoutStartTime}

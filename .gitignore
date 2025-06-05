@@ -24,3 +24,5 @@ hs_err_pid*
 replay_pid*
 workouts.html
 workouts.csv
+frontend/package-lock.json
+frontend/package.json
