@@ -415,7 +415,13 @@ function LandingPage() {
       // Clear the file input
       event.target.value = '';
       
+      // Wait for PRs to be fetched
       await fetchPRs();
+      
+      // Add a small delay to ensure data is properly processed
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Navigate to dashboard
       navigate('/dashboard');
     } catch (error) {
       console.error('Error uploading file:', error);

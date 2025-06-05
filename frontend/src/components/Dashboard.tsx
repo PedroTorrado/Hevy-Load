@@ -125,7 +125,8 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
 
   useEffect(() => {
     fetchExercises();
-  }, []);
+    fetchWorkouts();
+  }, [selectedExercise]);
 
   useEffect(() => {
     // Filter workouts for the selected exercise
@@ -496,7 +497,15 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Container maxWidth="lg">
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={() => navigate('/')}
+          sx={{ mb: 2 }}
+        >
+          Back to Home
+        </Button>
         <Box sx={{ my: 4 }}>
           <Typography variant="h4" component="h1" gutterBottom sx={{ 
             textAlign: 'center',
@@ -509,33 +518,6 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
           }}>
             Hevy - Load
           </Typography>
-
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            mb: 4,
-            gap: 2
-          }}>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={() => window.open('https://hevy.com/settings?export', '_blank')}
-              sx={{
-                background: 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
-                boxShadow: '0 3px 5px 2px rgba(144, 202, 249, .3)',
-                padding: '10px 24px',
-                fontSize: '1.1rem',
-                '&:hover': {
-                  background: 'linear-gradient(45deg, #64b5f6 30%, #42a5f5 90%)',
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 5px 15px rgba(144, 202, 249, .4)',
-                },
-                transition: 'all 0.2s ease-in-out',
-              }}
-            >
-              Export from Hevy
-            </Button>
-          </Box>
 
           {error && (
             <Typography color="error" sx={{ 

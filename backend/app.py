@@ -20,7 +20,7 @@ app = Flask(__name__)
 CORS(app)
 
 # MongoDB connection
-client = MongoClient(os.getenv('MONGODB_URI', 'mongodb://localhost:27017/'))
+client = MongoClient(os.getenv('MONGODB_URI', 'mongodb://localhost:27018/'))
 db = client['workout_tracker']
 workouts_collection = db['workouts']
 

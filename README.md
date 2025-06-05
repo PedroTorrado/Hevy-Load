@@ -2,6 +2,34 @@
 
 A web application for visualizing workout data from CSV files.
 
+## 🚀 Quick Start with Docker
+
+You can run the entire application (frontend, backend, and MongoDB) using Docker:
+
+```bash
+# Build the Docker image
+sudo docker build -t hevy-load .
+
+# Remove any previous container (optional, if re-running)
+sudo docker rm -f hevy-load-container
+
+# Run the application
+sudo docker run -d -p 80:80 -p 5000:5000 -p 27017:27017 --name hevy-load-container hevy-load
+```
+
+- The frontend will be available at: http://localhost
+- The backend API will be available at: http://localhost:5000
+- MongoDB will be available inside the container at: mongodb://localhost:27017/hevy
+
+To stop and remove the container:
+```bash
+sudo docker rm -f hevy-load-container
+```
+
+> **Note:** You do NOT need to install or run MongoDB manually if using Docker. The container includes everything.
+
+---
+
 ## Prerequisites
 
 ### MongoDB Setup (using Podman)
