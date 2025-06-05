@@ -20,6 +20,7 @@ The frontend of the Workout Data Visualization application is built using React 
    ```bash
    npm start
    ```
+   The frontend will connect to the backend API at http://localhost:5001
 
 ## Usage
 

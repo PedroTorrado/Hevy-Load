@@ -20,6 +20,7 @@ The backend of the Workout Data Visualization application is built using Flask a
    ```bash
    python app.py
    ```
+   The server will start on port 5001 and will be accessible at http://localhost:5001
 
 ## Usage
 
