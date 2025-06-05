@@ -15,7 +15,7 @@ import {
   CircularProgress,
   ThemeProvider,
   createTheme,
-  CssBaseline
+  CssBaseline,
 } from '@mui/material';
 import { Line, Bar, Scatter } from 'react-chartjs-2';
 import {
@@ -37,6 +37,18 @@ import 'chartjs-adapter-date-fns';
 import { format } from 'date-fns';
 import axios from 'axios';
 import WorkoutDetails from './WorkoutDetails';
+
+// API URL configuration - automatically detect server address
+const getApiUrl = () => {
+  const hostname = window.location.hostname;
+  const protocol = window.location.protocol;
+  const port = '5000';
+  // If running locally, use localhost, otherwise use the current hostname
+  const apiUrl = `${protocol}//${hostname === 'localhost' || hostname === '127.0.0.1' ? 'localhost' : hostname}:${port}`;
+  return apiUrl;
+};
+
+const API_URL = getApiUrl();
 
 // Register ChartJS components
 ChartJS.register(
@@ -96,6 +108,7 @@ interface Workout {
 
 function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts: React.Dispatch<React.SetStateAction<Workout[]>> }) {
   const navigate = useNavigate();
+  const isMobile = window.matchMedia('(max-width:600px)').matches;
   const [exercises, setExercises] = useState<string[]>([]);
   const [selectedExercise, setSelectedExercise] = useState<string>(() => {
     return localStorage.getItem('selectedExercise') || 'Bench Press (Barbell)';
@@ -181,7 +194,7 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get('http://localhost:5000/api/exercises');
+      const response = await axios.get(`${API_URL}/api/exercises`);
       const exercisesList = response.data;
       setExercises(exercisesList);
       // If the saved exercise exists in the list, use it, otherwise use Bench Press
@@ -203,7 +216,7 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
       setLoading(true);
       setError(null);
       console.log('Fetching workouts for exercise:', selectedExercise);
-      const response = await axios.get('http://localhost:5000/api/workouts');
+      const response = await axios.get(`${API_URL}/api/workouts`);
       
       // Debug logging for squat data
       if (selectedExercise.toLowerCase().includes('squat')) {
@@ -240,7 +253,7 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.post('http://localhost:5000/api/upload', formData);
+      const response = await axios.post(`${API_URL}/api/upload`, formData);
       if (response.data.error) {
         throw new Error(response.data.error);
       }
@@ -361,13 +374,15 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
     responsive: true,
     plugins: {
       legend: {
-        display: true,
+        display: !isMobile,
       },
       title: {
         display: true,
         text: `${getAxisLabel(yAxis)} vs ${getAxisLabel(xAxis)}`,
+        font: { size: isMobile ? 14 : 18 }
       },
       tooltip: {
+        bodyFont: { size: isMobile ? 10 : 14 },
         callbacks: {
           title: function(context: any) {
             // Always show the actual workout date in the tooltip
@@ -409,24 +424,28 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
         ticks: {
           source: 'auto',
           autoSkip: true,
-          maxRotation: 45,
-          minRotation: 45
+          maxRotation: isMobile ? 0 : 45,
+          minRotation: isMobile ? 0 : 45,
+          font: { size: isMobile ? 10 : 14 }
         }
       } : {
         type: 'linear' as const,
         title: {
           display: true,
           text: getAxisLabel(xAxis)
-        }
+        },
+        ticks: { font: { size: isMobile ? 10 : 14 } }
       },
       y: {
         type: 'linear' as const,
         title: {
           display: true,
           text: getAxisLabel(yAxis)
-        }
+        },
+        ticks: { font: { size: isMobile ? 10 : 14 } }
       }
-    }
+    },
+    maintainAspectRatio: false,
   };
 
   // Add function to calculate one rep max PRs
@@ -703,14 +722,24 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
 
           <Paper 
             sx={{ 
-              p: 3,
+              p: isMobile ? 1 : 3,
               borderRadius: 2,
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
               background: 'linear-gradient(145deg, #1e1e1e 0%, #2d2d2d 100%)',
               border: '1px solid rgba(144, 202, 249, 0.1)',
+              overflowX: isMobile ? 'auto' : 'unset',
             }}
           >
-            <Box sx={{ height: 500, position: 'relative' }}>
+            <Box
+              sx={{
+                width: '100%',
+                minHeight: { xs: 250, sm: 350, md: 400 },
+                maxHeight: { xs: 350, sm: 500, md: 600 },
+                mx: 'auto',
+                position: 'relative',
+                overflowX: isMobile ? 'auto' : 'unset',
+              }}
+            >
               {loading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                   <CircularProgress sx={{ color: 'primary.main' }} />
@@ -743,7 +772,7 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
           {workouts.length > 0 && (
             <Paper 
               sx={{ 
-                p: 3,
+                p: isMobile ? 1 : 3,
                 mt: 3,
                 borderRadius: 2,
                 boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
@@ -753,12 +782,14 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
             >
               <Box sx={{ 
                 display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
+                flexDirection: isMobile ? 'column' : 'row',
+                justifyContent: isMobile ? 'center' : 'space-between',
+                alignItems: isMobile ? 'stretch' : 'center',
                 mb: 2,
+                gap: isMobile ? 2 : 0,
                 '& .MuiFormControlLabel-root': {
                   backgroundColor: 'rgba(144, 202, 249, 0.05)',
-                  padding: '8px 16px',
+                  padding: isMobile ? '6px 8px' : '8px 16px',
                   borderRadius: '8px',
                   transition: 'all 0.2s ease-in-out',
                   '&:hover': {

@@ -10,9 +10,30 @@ import {
   CssBaseline,
   Paper,
   CircularProgress,
-  Grid
+  Grid,
+  Alert,
+  Snackbar
 } from '@mui/material';
 import axios from 'axios';
+
+// API URL configuration - automatically detect server address
+const getApiUrl = () => {
+  const hostname = window.location.hostname;
+  const protocol = window.location.protocol;
+  const port = '5000';
+  
+  // Log connection details for debugging
+  console.log('Current hostname:', hostname);
+  console.log('Current protocol:', protocol);
+  console.log('Current full URL:', window.location.href);
+  
+  // If running locally, use localhost, otherwise use the current hostname
+  const apiUrl = `${protocol}//${hostname === 'localhost' || hostname === '127.0.0.1' ? 'localhost' : hostname}:${port}`;
+  console.log('API URL:', apiUrl);
+  return apiUrl;
+};
+
+const API_URL = getApiUrl();
 
 // Reuse the same theme from App.tsx
 const theme = createTheme({
@@ -56,6 +77,8 @@ interface Workout {
 function LandingPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [prs, setPrs] = useState<{
     bench: { weight: number; reps: number; date: string; firstAchieved: string } | null;
     squat: { weight: number; reps: number; date: string; firstAchieved: string } | null;
@@ -66,53 +89,66 @@ function LandingPage() {
     deadlift: null
   });
 
-  useEffect(() => {
-    const fetchPRs = async () => {
-      try {
-        const response = await axios.get('http://localhost:5000/api/workouts');
-        const workouts = response.data;
+  const fetchPRs = async () => {
+    try {
+      console.log('Attempting to fetch workouts from:', `${API_URL}/api/workouts`);
+      const response = await axios.get(`${API_URL}/api/workouts`);
+      const workouts = response.data;
+      console.log('Successfully fetched workouts:', workouts.length);
 
-        // Helper function to find PR and first achievement for an exercise
-        const findPR = (exerciseName: string) => {
-          const exerciseWorkouts = workouts.filter((w: Workout) => 
-            w.exercise_title.toLowerCase().includes(exerciseName.toLowerCase())
-          );
-          
-          if (!exerciseWorkouts.length) return null;
-          
-          // Sort by date to find first achievement
-          const sortedWorkouts = [...exerciseWorkouts].sort((a, b) => 
-            new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-          );
-          
-          // Find the workout with the highest weight
-          const pr = exerciseWorkouts.reduce((max: Workout, current: Workout) => 
-            current.weight_kg > max.weight_kg ? current : max
-          );
-          
-          // Find when this weight was first achieved
-          const firstAchievement = sortedWorkouts.find(w => w.weight_kg >= pr.weight_kg);
-          
-          return {
-            weight: pr.weight_kg,
-            reps: pr.reps,
-            date: pr.start_time,
-            firstAchieved: firstAchievement?.start_time || pr.start_time
-          };
+      // Helper function to find PR and first achievement for an exercise
+      const findPR = (exerciseName: string, workouts: Workout[]) => {
+        const exerciseWorkouts = workouts.filter((w: Workout) => 
+          w.exercise_title.toLowerCase().includes(exerciseName.toLowerCase())
+        );
+        
+        if (!exerciseWorkouts.length) return null;
+        
+        // Sort by date to find first achievement
+        const sortedWorkouts = [...exerciseWorkouts].sort((a, b) => 
+          new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+        );
+        
+        // Find the workout with the highest weight
+        const pr = exerciseWorkouts.reduce((max: Workout, current: Workout) => 
+          current.weight_kg > max.weight_kg ? current : max
+        );
+        
+        // Find when this weight was first achieved
+        const firstAchievement = sortedWorkouts.find(w => w.weight_kg >= pr.weight_kg);
+        
+        return {
+          weight: pr.weight_kg,
+          reps: pr.reps,
+          date: pr.start_time,
+          firstAchieved: firstAchievement?.start_time || pr.start_time
         };
+      };
 
-        setPrs({
-          bench: findPR('bench press'),
-          squat: findPR('squat'),
-          deadlift: findPR('deadlift')
+      setPrs({
+        bench: findPR('bench press', workouts),
+        squat: findPR('squat', workouts),
+        deadlift: findPR('deadlift', workouts)
+      });
+    } catch (error) {
+      console.error('Error fetching PRs:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('Axios error details:', {
+          message: error.message,
+          code: error.code,
+          response: error.response,
+          request: error.request
         });
-      } catch (error) {
-        console.error('Error fetching PRs:', error);
-      } finally {
-        setLoading(false);
+        if (!error.response) {
+          setError(`Cannot connect to server at ${API_URL}. Please check if the server is running and accessible.`);
+        }
       }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchPRs();
   }, []);
 
@@ -340,6 +376,73 @@ function LandingPage() {
     );
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Check file type
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      setError('Please select a CSV file');
+      return;
+    }
+
+    // Check file size (limit to 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setError('File size must be less than 10MB');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      setUploadLoading(true);
+      setError(null);
+      
+      console.log('Attempting to upload file to:', `${API_URL}/api/upload`);
+      // Add timeout to the request
+      const response = await axios.post(`${API_URL}/api/upload`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 30000, // 30 second timeout
+      });
+
+      if (response.data.error) {
+        throw new Error(response.data.error);
+      }
+
+      // Clear the file input
+      event.target.value = '';
+      
+      await fetchPRs();
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('Axios error details:', {
+          message: error.message,
+          code: error.code,
+          response: error.response,
+          request: error.request
+        });
+        if (error.code === 'ECONNABORTED') {
+          setError('Upload timed out. Please try again.');
+        } else if (error.response) {
+          setError(error.response.data.error || 'Failed to upload file. Please try again.');
+        } else if (error.request) {
+          setError(`Cannot connect to server at ${API_URL}. Please check if the server is running and accessible.`);
+        } else {
+          setError('Failed to upload file. Please try again.');
+        }
+      } else {
+        setError('Failed to upload file. Please try again.');
+      }
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -410,24 +513,36 @@ function LandingPage() {
             )}
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 3 }}>
-            <Button
-              variant="contained"
-              size="large"
-              onClick={() => navigate('/dashboard')}
-              sx={{
-                py: 2,
-                px: 4,
-                fontSize: '1.2rem',
-                background: 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
-                boxShadow: '0 3px 5px 2px rgba(144, 202, 249, .3)',
-                '&:hover': {
-                  background: 'linear-gradient(45deg, #64b5f6 30%, #42a5f5 90%)',
-                },
-              }}
-            >
-              Go to Dashboard
-            </Button>
+          <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <input
+              accept=".csv"
+              style={{ display: 'none' }}
+              id="upload-button-file"
+              type="file"
+              onChange={handleFileUpload}
+              capture="environment"
+            />
+            <label htmlFor="upload-button-file">
+              <Button
+                variant="contained"
+                size="large"
+                component="span"
+                disabled={uploadLoading}
+                sx={{
+                  py: 2,
+                  px: 4,
+                  fontSize: '1.2rem',
+                  minWidth: '200px',
+                  background: 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
+                  boxShadow: '0 3px 5px 2px rgba(144, 202, 249, .3)',
+                  '&:hover': {
+                    background: 'linear-gradient(45deg, #64b5f6 30%, #42a5f5 90%)',
+                  },
+                }}
+              >
+                {uploadLoading ? 'Uploading...' : 'Import Workout Data'}
+              </Button>
+            </label>
 
             <Button
               variant="outlined"
@@ -437,6 +552,7 @@ function LandingPage() {
                 py: 2,
                 px: 4,
                 fontSize: '1.2rem',
+                minWidth: '200px',
                 borderColor: 'primary.main',
                 color: 'primary.main',
                 '&:hover': {
@@ -447,7 +563,37 @@ function LandingPage() {
             >
               Export from Hevy
             </Button>
+
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => navigate('/dashboard')}
+              sx={{
+                py: 2,
+                px: 4,
+                fontSize: '1.2rem',
+                minWidth: '200px',
+                background: 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
+                boxShadow: '0 3px 5px 2px rgba(144, 202, 249, .3)',
+                '&:hover': {
+                  background: 'linear-gradient(45deg, #64b5f6 30%, #42a5f5 90%)',
+                },
+              }}
+            >
+              Go to Dashboard
+            </Button>
           </Box>
+
+          <Snackbar 
+            open={!!error} 
+            autoHideDuration={6000} 
+            onClose={() => setError(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+          >
+            <Alert onClose={() => setError(null)} severity="error" sx={{ width: '100%' }}>
+              {error}
+            </Alert>
+          </Snackbar>
         </Box>
       </Container>
     </ThemeProvider>
