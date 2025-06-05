@@ -2,7 +2,11 @@
 
 A web application for visualizing workout data from CSV files.
 
-## 🚀 Quick Start with Docker
+---
+
+## 🚀 Running with Docker (Recommended)
+
+**This method does not require any prerequisites or manual MongoDB setup.**
 
 You can run the entire application (frontend, backend, and MongoDB) using Docker:
 
@@ -30,9 +34,13 @@ sudo docker rm -f hevy-load-container
 
 ---
 
-## Prerequisites
+## ⚙️ Manual Local Setup (Advanced/Development)
 
-### MongoDB Setup (using Podman)
+> **The following sections are only needed if you want to run the app locally without Docker.**
+
+### Prerequisites
+
+#### MongoDB Setup (using Podman)
 
 1. Install Podman (if not already installed):
    ```bash
@@ -59,9 +67,9 @@ sudo docker rm -f hevy-load-container
    podman start mongodb
    ```
 
-## Setup
+### Setup
 
-### Backend
+#### Backend
 
 1. Navigate to the backend directory:
    ```bash
@@ -78,7 +86,7 @@ sudo docker rm -f hevy-load-container
    python app.py
    ```
 
-### Frontend
+#### Frontend
 
 1. Navigate to the frontend directory:
    ```bash
