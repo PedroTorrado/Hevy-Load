@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { 
   Container, 
   Box, 
@@ -9,7 +10,7 @@ import {
   InputLabel,
   Paper,
   Button,
-  Checkbox,
+  Switch,
   FormControlLabel,
   CircularProgress,
   ThemeProvider,
@@ -35,6 +36,7 @@ import {
 import 'chartjs-adapter-date-fns';
 import { format } from 'date-fns';
 import axios from 'axios';
+import WorkoutDetails from './components/WorkoutDetails';
 
 // Register ChartJS components
 ChartJS.register(
@@ -92,8 +94,8 @@ interface Workout {
   rpe?: number;
 }
 
-function App() {
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
+function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts: React.Dispatch<React.SetStateAction<Workout[]>> }) {
+  const navigate = useNavigate();
   const [exercises, setExercises] = useState<string[]>([]);
   const [selectedExercise, setSelectedExercise] = useState<string>(() => {
     return localStorage.getItem('selectedExercise') || 'Bench Press (Barbell)';
@@ -113,22 +115,17 @@ function App() {
   }, []);
 
   useEffect(() => {
-    fetchWorkouts();
-  }, [selectedExercise]);
-
-  // Separate effect for handling single rep toggle
-  useEffect(() => {
-    if (workouts.length > 0) {
-      setWorkoutData(workouts);
-    }
-  }, [showOnlySingleReps, workouts]);
+    // Filter workouts for the selected exercise
+    const filteredWorkouts = workouts.filter(w => w.exercise_title === selectedExercise);
+    setWorkoutData(filteredWorkouts);
+  }, [selectedExercise, workouts]);
 
   const calculatePRs = useMemo(() => {
     if (!workoutData.length) return [];
     
     // Get fresh data for the selected exercise
     const exerciseWorkouts = workoutData
-      .filter(w => w.exercise_title === selectedExercise && w.weight_kg > 0 && w.reps > 0)
+      .filter(w => w.weight_kg > 0 && w.reps > 0)
       .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
     
     if (!exerciseWorkouts.length) return [];
@@ -206,7 +203,7 @@ function App() {
       setLoading(true);
       setError(null);
       console.log('Fetching workouts for exercise:', selectedExercise);
-      const response = await axios.get(`http://localhost:5000/api/workouts?exercise=${selectedExercise}`);
+      const response = await axios.get('http://localhost:5000/api/workouts');
       
       // Debug logging for squat data
       if (selectedExercise.toLowerCase().includes('squat')) {
@@ -220,7 +217,9 @@ function App() {
         throw new Error('Invalid data format received from server');
       }
       setWorkouts(response.data);
-      setWorkoutData(response.data);
+      // Filter workouts for the selected exercise
+      const filteredWorkouts = response.data.filter(w => w.exercise_title === selectedExercise);
+      setWorkoutData(filteredWorkouts);
     } catch (error) {
       console.error('Error fetching workouts:', error);
       setError('Failed to fetch workouts. Please try again.');
@@ -255,8 +254,12 @@ function App() {
     }
   };
 
+  const handlePointClick = (date: string) => {
+    navigate(`/workout/${date}`);
+  };
+
   const getChartData = useMemo(() => {
-    if (!workouts.length) {
+    if (!workoutData.length) {
       return {
         datasets: [{
           label: `${yAxis} vs ${xAxis}`,
@@ -267,7 +270,7 @@ function App() {
       };
     }
 
-    let filteredWorkouts = [...workouts];
+    let filteredWorkouts = [...workoutData];
     if (showTopSets) {
       const topSets = new Map<string, Workout>();
       filteredWorkouts.forEach(workout => {
@@ -295,7 +298,8 @@ function App() {
       // Create new array with evenly spaced dates
       const data = filteredWorkouts.map((workout, index) => ({
         x: new Date(minDate.getTime() + timeStep * index),
-        y: Number(workout[yAxis as keyof Workout]) || 0
+        y: Number(workout[yAxis as keyof Workout]) || 0,
+        originalDate: workout.start_time
       }));
 
       return {
@@ -315,7 +319,8 @@ function App() {
       
       return {
         x: xAxis === 'start_time' ? new Date(xValue as string) : Number(xValue) || 0,
-        y: Number(yValue) || 0
+        y: Number(yValue) || 0,
+        originalDate: w.start_time
       };
     });
 
@@ -327,7 +332,7 @@ function App() {
         backgroundColor: 'rgba(25, 118, 210, 0.2)',
       }]
     };
-  }, [workouts, showTopSets, xAxis, yAxis, evenDateSpacing]);
+  }, [workoutData, showTopSets, xAxis, yAxis, evenDateSpacing]);
 
   const getLineChartData = () => getChartData as ChartData<'line', { x: Date | number; y: number }[]>;
   const getBarChartData = () => getChartData as ChartData<'bar', { x: Date | number; y: number }[]>;
@@ -362,6 +367,30 @@ function App() {
         display: true,
         text: `${getAxisLabel(yAxis)} vs ${getAxisLabel(xAxis)}`,
       },
+      tooltip: {
+        callbacks: {
+          title: function(context: any) {
+            // Always show the actual workout date in the tooltip
+            const date = new Date(context[0].raw.originalDate);
+            return format(date, 'MMM d, yyyy');
+          },
+          label: function(context: any) {
+            return [
+              `${getAxisLabel(yAxis)}: ${context.raw.y}`,
+              'Click to view workout details'
+            ];
+          }
+        }
+      }
+    },
+    onClick: (event, elements) => {
+      if (elements && elements.length > 0) {
+        const index = elements[0].index;
+        const data = getChartData.datasets[0].data[index];
+        if (data && data.originalDate) {
+          handlePointClick(data.originalDate);
+        }
+      }
     },
     scales: {
       x: xAxis === 'start_time' ? {
@@ -402,11 +431,10 @@ function App() {
 
   // Add function to calculate one rep max PRs
   const calculateOneRepMaxPRs = useMemo(() => {
-    if (!workouts.length) return [];
+    if (!workoutData.length) return [];
     
     // Get fresh data from the database for the selected exercise
-    const exerciseWorkouts = workouts
-      .filter(w => w.exercise_title === selectedExercise)
+    const exerciseWorkouts = workoutData
       .map(w => ({
         date: w.start_time,
         weight: w.weight_kg,
@@ -439,7 +467,7 @@ function App() {
     // Convert to array and sort by 1RM (highest first)
     return Array.from(firstOccurrence.values())
       .sort((a, b) => b.oneRepMax - a.oneRepMax);
-  }, [workouts, selectedExercise]);
+  }, [workoutData, selectedExercise]);
 
   // Update the checkbox handler
   const handleSingleRepToggle = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -601,10 +629,11 @@ function App() {
             <Box sx={{ gridColumn: { xs: 'span 12', md: 'span 6' } }}>
               <FormControlLabel
                 control={
-                  <Checkbox
+                  <Switch
                     checked={showTopSets}
                     onChange={(e) => setShowTopSets(e.target.checked)}
                     disabled={loading}
+                    color="primary"
                   />
                 }
                 label="Show only top sets"
@@ -614,26 +643,14 @@ function App() {
             <Box sx={{ gridColumn: { xs: 'span 12', md: 'span 6' } }}>
               <FormControlLabel
                 control={
-                  <Checkbox
+                  <Switch
                     checked={evenDateSpacing}
                     onChange={(e) => setEvenDateSpacing(e.target.checked)}
                     disabled={loading}
+                    color="primary"
                   />
                 }
                 label="Show even date spacing"
-              />
-            </Box>
-
-            <Box sx={{ gridColumn: { xs: 'span 12', md: 'span 6' } }}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={showOnlySingleReps}
-                    onChange={handleSingleRepToggle}
-                    disabled={loading}
-                  />
-                }
-                label="Show only single-rep PRs"
               />
             </Box>
           </Box>
@@ -684,14 +701,28 @@ function App() {
                 background: 'linear-gradient(145deg, #1e1e1e 0%, #2d2d2d 100%)',
               }}
             >
-              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
-                Personal Records
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6" sx={{ color: 'primary.main' }}>
+                  Personal Records
+                </Typography>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={showOnlySingleReps}
+                      onChange={handleSingleRepToggle}
+                      disabled={loading}
+                      color="primary"
+                    />
+                  }
+                  label="Show only single-rep PRs"
+                />
+              </Box>
               {calculatePRs.length > 0 ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                   {calculatePRs.map((pr) => (
                     <Box 
                       key={`${pr.date}-${pr.weight}-${pr.reps}`}
+                      onClick={() => handlePointClick(pr.date)}
                       sx={{ 
                         display: 'flex', 
                         justifyContent: 'space-between',
@@ -699,6 +730,10 @@ function App() {
                         p: 1,
                         borderRadius: 1,
                         backgroundColor: 'rgba(144, 202, 249, 0.1)',
+                        cursor: 'pointer',
+                        '&:hover': {
+                          backgroundColor: 'rgba(144, 202, 249, 0.2)',
+                        },
                       }}
                     >
                       <Typography>
@@ -736,7 +771,8 @@ function App() {
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                   {calculateOneRepMaxPRs.map((pr) => (
                     <Box 
-                      key={pr.date} 
+                      key={pr.date}
+                      onClick={() => handlePointClick(pr.date)}
                       sx={{ 
                         display: 'flex', 
                         justifyContent: 'space-between',
@@ -744,6 +780,10 @@ function App() {
                         p: 1,
                         borderRadius: 1,
                         backgroundColor: 'rgba(144, 202, 249, 0.1)',
+                        cursor: 'pointer',
+                        '&:hover': {
+                          backgroundColor: 'rgba(144, 202, 249, 0.2)',
+                        },
                       }}
                     >
                       <Typography>
@@ -765,6 +805,46 @@ function App() {
         </Box>
       </Container>
     </ThemeProvider>
+  );
+}
+
+function App() {
+  const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchWorkouts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await axios.get('http://localhost:5000/api/workouts');
+      if (response.data.error) {
+        throw new Error(response.data.error);
+      }
+      if (!Array.isArray(response.data)) {
+        throw new Error('Invalid data format received from server');
+      }
+      setWorkouts(response.data);
+    } catch (error) {
+      console.error('Error fetching workouts:', error);
+      setError('Failed to fetch workouts. Please try again.');
+      setWorkouts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchWorkouts();
+  }, []);
+
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<AppContent workouts={workouts} setWorkouts={setWorkouts} />} />
+        <Route path="/workout/:date" element={<WorkoutDetails workouts={workouts} />} />
+      </Routes>
+    </Router>
   );
 }
 
