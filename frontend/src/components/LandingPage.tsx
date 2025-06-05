@@ -20,7 +20,7 @@ import axios from 'axios';
 const getApiUrl = () => {
   const hostname = window.location.hostname;
   const protocol = window.location.protocol;
-  const port = '5000';
+  const port = '5001';
   
   // Log connection details for debugging
   console.log('Current hostname:', hostname);
@@ -79,6 +79,7 @@ function LandingPage() {
   const [loading, setLoading] = useState(true);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
   const [prs, setPrs] = useState<{
     bench: { weight: number; reps: number; date: string; firstAchieved: string } | null;
     squat: { weight: number; reps: number; date: string; firstAchieved: string } | null;
@@ -398,6 +399,7 @@ function LandingPage() {
     try {
       setUploadLoading(true);
       setError(null);
+      setUploadSuccess(false);
       
       console.log('Attempting to upload file to:', `${API_URL}/api/upload`);
       // Add timeout to the request
@@ -421,8 +423,8 @@ function LandingPage() {
       // Add a small delay to ensure data is properly processed
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Navigate to dashboard
-      navigate('/dashboard');
+      // Show success message instead of navigating
+      setUploadSuccess(true);
     } catch (error) {
       console.error('Error uploading file:', error);
       if (axios.isAxiosError(error)) {
@@ -579,14 +581,35 @@ function LandingPage() {
                 px: 4,
                 fontSize: '1.2rem',
                 minWidth: '200px',
-                background: 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
-                boxShadow: '0 3px 5px 2px rgba(144, 202, 249, .3)',
+                background: uploadSuccess 
+                  ? 'linear-gradient(45deg, #4caf50 30%, #45a049 90%)'
+                  : 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
+                boxShadow: uploadSuccess
+                  ? '0 3px 5px 2px rgba(76, 175, 80, .3)'
+                  : '0 3px 5px 2px rgba(144, 202, 249, .3)',
+                animation: uploadSuccess ? 'pulse 2s infinite' : 'none',
+                '@keyframes pulse': {
+                  '0%': {
+                    transform: 'scale(1)',
+                    boxShadow: '0 3px 5px 2px rgba(76, 175, 80, .3)',
+                  },
+                  '50%': {
+                    transform: 'scale(1.05)',
+                    boxShadow: '0 5px 15px 2px rgba(76, 175, 80, .5)',
+                  },
+                  '100%': {
+                    transform: 'scale(1)',
+                    boxShadow: '0 3px 5px 2px rgba(76, 175, 80, .3)',
+                  },
+                },
                 '&:hover': {
-                  background: 'linear-gradient(45deg, #64b5f6 30%, #42a5f5 90%)',
+                  background: uploadSuccess
+                    ? 'linear-gradient(45deg, #45a049 30%, #3d8b40 90%)'
+                    : 'linear-gradient(45deg, #64b5f6 30%, #42a5f5 90%)',
                 },
               }}
             >
-              Go to Dashboard
+              {uploadSuccess ? 'View Your Data →' : 'Go to Dashboard'}
             </Button>
           </Box>
 
@@ -598,6 +621,17 @@ function LandingPage() {
           >
             <Alert onClose={() => setError(null)} severity="error" sx={{ width: '100%' }}>
               {error}
+            </Alert>
+          </Snackbar>
+
+          <Snackbar 
+            open={uploadSuccess} 
+            autoHideDuration={6000} 
+            onClose={() => setUploadSuccess(false)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+          >
+            <Alert onClose={() => setUploadSuccess(false)} severity="success" sx={{ width: '100%' }}>
+              Data uploaded successfully! Click the dashboard button to view your progress.
             </Alert>
           </Snackbar>
         </Box>

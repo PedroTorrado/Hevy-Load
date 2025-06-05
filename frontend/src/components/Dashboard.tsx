@@ -42,7 +42,7 @@ import WorkoutDetails from './WorkoutDetails';
 const getApiUrl = () => {
   const hostname = window.location.hostname;
   const protocol = window.location.protocol;
-  const port = '5000';
+  const port = '5001';
   // If running locally, use localhost, otherwise use the current hostname
   const apiUrl = `${protocol}//${hostname === 'localhost' || hostname === '127.0.0.1' ? 'localhost' : hostname}:${port}`;
   return apiUrl;

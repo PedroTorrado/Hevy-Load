@@ -72,7 +72,7 @@ RUN echo 'server { \
     } \
     \
     location /api { \
-        proxy_pass http://localhost:5000; \
+        proxy_pass http://localhost:5001; \
         proxy_http_version 1.1; \
         proxy_set_header Upgrade $http_upgrade; \
         proxy_set_header Connection "upgrade"; \
@@ -96,7 +96,7 @@ ENV FLASK_ENV=production
 ENV MONGODB_URI=mongodb://localhost:27017/hevy
 
 # Expose ports
-EXPOSE 80 5000 27017
+EXPOSE 80 5001 27017
 
 # Start both services
 CMD ["/app/start.sh"] 
