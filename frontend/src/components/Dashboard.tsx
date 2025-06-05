@@ -36,7 +36,6 @@ import {
 import 'chartjs-adapter-date-fns';
 import { format } from 'date-fns';
 import axios from 'axios';
-import WorkoutDetails from './WorkoutDetails';
 
 // API URL configuration - automatically detect server address
 const getApiUrl = () => {

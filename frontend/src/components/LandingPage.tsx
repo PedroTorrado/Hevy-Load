@@ -530,6 +530,25 @@ function LandingPage() {
               onChange={handleFileUpload}
               capture="environment"
             />
+
+            <Button
+              variant="outlined"
+              size="large"
+              onClick={() => window.open('https://hevy.com/settings?export', '_blank')}
+              sx={{
+                width: '300px',
+                height: '60px',
+                borderColor: 'primary.main',
+                color: 'primary.main',
+                '&:hover': {
+                  borderColor: 'primary.light',
+                  backgroundColor: 'rgba(144, 202, 249, 0.1)',
+                },
+              }}
+            >
+              Export from Hevy
+            </Button>
+
             <label htmlFor="upload-button-file">
               <Button
                 variant="contained"
@@ -537,10 +556,8 @@ function LandingPage() {
                 component="span"
                 disabled={uploadLoading}
                 sx={{
-                  py: 2,
-                  px: 4,
-                  fontSize: '1.2rem',
-                  minWidth: '200px',
+                  width: '300px',
+                  height: '60px',
                   background: 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
                   boxShadow: '0 3px 5px 2px rgba(144, 202, 249, .3)',
                   '&:hover': {
@@ -553,34 +570,12 @@ function LandingPage() {
             </label>
 
             <Button
-              variant="outlined"
-              size="large"
-              onClick={() => window.open('https://hevy.com/settings?export', '_blank')}
-              sx={{
-                py: 2,
-                px: 4,
-                fontSize: '1.2rem',
-                minWidth: '200px',
-                borderColor: 'primary.main',
-                color: 'primary.main',
-                '&:hover': {
-                  borderColor: 'primary.light',
-                  backgroundColor: 'rgba(144, 202, 249, 0.1)',
-                },
-              }}
-            >
-              Export from Hevy
-            </Button>
-
-            <Button
               variant="contained"
               size="large"
               onClick={() => navigate('/dashboard')}
               sx={{
-                py: 2,
-                px: 4,
-                fontSize: '1.2rem',
-                minWidth: '200px',
+                width: '300px',
+                height: '60px',
                 background: uploadSuccess 
                   ? 'linear-gradient(45deg, #4caf50 30%, #45a049 90%)'
                   : 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
@@ -611,6 +606,23 @@ function LandingPage() {
             >
               {uploadSuccess ? 'View Your Data →' : 'Go to Dashboard'}
             </Button>
+          </Box>
+
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              gap: 3, 
+              flexWrap: 'wrap', 
+              justifyContent: 'center',
+              mt: 4
+            }}>
+              <Button
+                variant="contained"
+                size="large"
+                onClick={() => navigate('/workouts')}
+              >
+                View Workouts
+              </Button>
           </Box>
 
           <Snackbar 

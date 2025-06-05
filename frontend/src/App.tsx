@@ -39,6 +39,7 @@ import axios from 'axios';
 import WorkoutDetails from './components/WorkoutDetails';
 import LandingPage from './components/LandingPage';
 import Dashboard from './components/Dashboard';
+import Workouts from './components/Workouts';
 
 // Register ChartJS components
 ChartJS.register(
@@ -846,6 +847,7 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/dashboard" element={<Dashboard workouts={workouts} setWorkouts={setWorkouts} />} />
         <Route path="/workout/:date" element={<WorkoutDetails workouts={workouts} />} />
+        <Route path="/workouts" element={<Workouts />} />
       </Routes>
     </Router>
   );
