@@ -83,25 +83,43 @@ RUN echo 'server { \
 
 # Create startup script
 RUN echo '#!/bin/bash\n\
-mkdir -p /data/db\n\
-mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db\n\
+set -e\n\
 \n\
-# Wait for MongoDB to be ready\n\
+echo "Creating MongoDB data directory..."\n\
+mkdir -p /data/db\n\
+chown -R mongodb:mongodb /data/db\n\
+\n\
+echo "Starting MongoDB..."\n\
+mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db --bind_ip_all\n\
+\n\
 echo "Waiting for MongoDB to be ready..."\n\
-until mongosh --quiet --eval "db.adminCommand('\''ping'\'')" > /dev/null 2>&1; do\n\
+for i in {1..30}; do\n\
+  if mongosh --quiet --eval "db.adminCommand('\''ping'\'')" > /dev/null 2>&1; then\n\
+    echo "MongoDB is up!"\n\
+    break\n\
+  fi\n\
+  if [ $i -eq 30 ]; then\n\
+    echo "MongoDB failed to start after 30 seconds"\n\
+    exit 1\n\
+  fi\n\
+  echo "Waiting for MongoDB... attempt $i"\n\
   sleep 1\n\
 done\n\
-echo "MongoDB is up!"\n\
 \n\
+echo "Starting nginx..."\n\
 service nginx start\n\
+\n\
+echo "Starting Flask application..."\n\
 python backend/app.py &\n\
+\n\
+echo "All services started. Waiting for processes..."\n\
 wait' > /app/start.sh && chmod +x /app/start.sh
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV FLASK_APP=backend/app.py
 ENV FLASK_ENV=production
-ENV MONGODB_URI=mongodb://localhost:27017/hevy
+ENV MONGODB_URI=mongodb://mongo:27017/hevy
 
 # Expose ports
 EXPOSE 80 5001 27017

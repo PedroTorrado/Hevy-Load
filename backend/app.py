@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pymongo import MongoClient
+from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 import pandas as pd
 from datetime import datetime
 import os
@@ -8,6 +9,7 @@ from dotenv import load_dotenv
 import logging
 import traceback
 import numpy as np
+import time
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -19,10 +21,36 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-# MongoDB connection
-client = MongoClient(os.getenv('MONGODB_URI', 'mongodb://localhost:27017/'))
-db = client['workout_tracker']
-workouts_collection = db['workouts']
+# MongoDB connection with retry logic
+def get_mongo_client(max_retries=5, retry_delay=5):
+    retries = 0
+    while retries < max_retries:
+        try:
+            client = MongoClient(
+                os.getenv('MONGODB_URI', 'mongodb://localhost:27017/'),
+                serverSelectionTimeoutMS=5000,  # 5 second timeout
+                connectTimeoutMS=5000
+            )
+            # Test the connection
+            client.admin.command('ping')
+            logger.info("Successfully connected to MongoDB")
+            return client
+        except (ConnectionFailure, ServerSelectionTimeoutError) as e:
+            retries += 1
+            if retries == max_retries:
+                logger.error(f"Failed to connect to MongoDB after {max_retries} attempts: {str(e)}")
+                raise
+            logger.warning(f"Failed to connect to MongoDB (attempt {retries}/{max_retries}): {str(e)}")
+            time.sleep(retry_delay)
+
+# Initialize MongoDB connection
+try:
+    client = get_mongo_client()
+    db = client['workout_tracker']
+    workouts_collection = db['workouts']
+except Exception as e:
+    logger.error(f"Failed to initialize MongoDB connection: {str(e)}")
+    raise
 
 def validate_workout(workout):
     """Validate workout data and handle NaN values."""
