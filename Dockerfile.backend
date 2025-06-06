@@ -2,20 +2,27 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-# Install Python dependencies
+# Instala dependências do sistema necessárias para o backend (build-essential, curl, etc.) - apenas o que for necessário para teu app
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copia requirements.txt para instalar dependências Python
 COPY backend/requirements.txt .
+
+# Instala dependências Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend source code
+# Copia código do backend
 COPY backend/ .
 
-# Set environment variables
+# Define variáveis de ambiente para o Flask
 ENV PYTHONUNBUFFERED=1
 ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
 
-# Expose port
+# Expõe a porta usada pela app Flask
 EXPOSE 5001
 
-# Start the Flask app
+# Comando para iniciar o backend (Flask)
 CMD ["flask", "run", "--host=0.0.0.0", "--port=5001"]

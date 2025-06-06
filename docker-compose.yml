@@ -39,4 +39,4 @@ services:
       - backend
 
 volumes:
-  mongodb_data: 
+  mongodb_data:
