@@ -27,3 +27,4 @@ workouts.csv
 frontend/package-lock.json
 frontend/package.json
 docker-cheatsheat
+.env

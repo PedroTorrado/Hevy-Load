@@ -1,20 +1,19 @@
-name: Build and Push Docker Image
+name: Build and Push Docker Images
 
 on:
   push:
-    branches: 
+    branches:
       - "main"
-      - "**"  # This will match all other branches
-  # Optionally, you can also trigger on pull requests
-  # pull_request:
-  #   branches: [ "main" ]
+      - "**"  # Match all other branches
 
 env:
-  DOCKER_IMAGE_NAME: hevy-load  # Change this to your preferred image name
+  DOCKER_IMAGE_BACKEND: hevy-load-backend
+  DOCKER_IMAGE_FRONTEND: hevy-load-frontend
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -32,13 +31,26 @@ jobs:
         shell: bash
         run: echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
 
-      - name: Build and push Docker image
+      - name: Build and push backend image
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: Dockerfile.backend
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:test
-            ${{ github.ref == 'refs/heads/main' && format('{0}/{1}:latest', secrets.DOCKERHUB_USERNAME, env.DOCKER_IMAGE_NAME) || '' }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE_BACKEND }}:test
+            ${{ github.ref == 'refs/heads/main' && format('{0}/{1}:latest', secrets.DOCKERHUB_USERNAME, env.DOCKER_IMAGE_BACKEND) || '' }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max 
+          cache-to: type=gha,mode=max
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.frontend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE_FRONTEND }}:test
+            ${{ github.ref == 'refs/heads/main' && format('{0}/{1}:latest', secrets.DOCKERHUB_USERNAME, env.DOCKER_IMAGE_FRONTEND) || '' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
