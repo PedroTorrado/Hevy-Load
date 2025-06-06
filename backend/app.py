@@ -10,6 +10,7 @@ import logging
 import traceback
 import numpy as np
 import time
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -20,6 +21,9 @@ load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
+
+# Handle proxy headers
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # MongoDB connection with retry logic
 def get_mongo_client(max_retries=5, retry_delay=5):
@@ -166,4 +170,16 @@ def upload_workouts():
         return jsonify({'error': str(e)}), 400
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001, host='0.0.0.0') 
+    # Use environment variables for configuration
+    port = int(os.getenv('PORT', 5001))
+    debug = os.getenv('FLASK_ENV') == 'development'
+    
+    # Get the protocol from environment or default to http
+    protocol = os.getenv('FLASK_PROTOCOL', 'http')
+    
+    app.run(
+        host='0.0.0.0',
+        port=port,
+        debug=debug,
+        ssl_context=('ssl/nginx-selfsigned.crt', 'ssl/nginx-selfsigned.key') if protocol == 'https' else None
+    ) 
