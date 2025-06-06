@@ -81,6 +81,14 @@ RUN echo 'server { \
     } \
 }' > /etc/nginx/conf.d/default.conf
 
+# Create MongoDB configuration
+RUN echo 'net:\n\
+  bindIp: 0.0.0.0\n\
+  port: 27017\n\
+security:\n\
+  authorization: disabled\n\
+' > /etc/mongod.conf
+
 # Create startup script
 RUN echo '#!/bin/bash\n\
 set -e\n\
@@ -90,12 +98,14 @@ mkdir -p /data/db\n\
 chown -R mongodb:mongodb /data/db\n\
 \n\
 echo "Starting MongoDB..."\n\
-mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db --bind_ip_all\n\
+mongod --config /etc/mongod.conf --fork --logpath /var/log/mongodb.log --dbpath /data/db\n\
 \n\
 echo "Waiting for MongoDB to be ready..."\n\
 for i in {1..30}; do\n\
   if mongosh --quiet --eval "db.adminCommand('\''ping'\'')" > /dev/null 2>&1; then\n\
     echo "MongoDB is up!"\n\
+    # Initialize the database\n\
+    mongosh --quiet --eval "db = db.getSiblingDB('\''hevy'\''); db.createCollection('\''workouts'\'');"\n\
     break\n\
   fi\n\
   if [ $i -eq 30 ]; then\n\
@@ -119,7 +129,7 @@ wait' > /app/start.sh && chmod +x /app/start.sh
 ENV PYTHONUNBUFFERED=1
 ENV FLASK_APP=backend/app.py
 ENV FLASK_ENV=production
-ENV MONGODB_URI=mongodb://mongo:27017/hevy
+ENV MONGODB_URI=mongodb://localhost:27017/hevy
 
 # Expose ports
 EXPOSE 80 5001 27017
