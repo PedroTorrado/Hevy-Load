@@ -10,7 +10,7 @@ import {
   Stack,
   Divider,
 } from '@mui/material';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isSameDay, differenceInMinutes } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isSameDay, differenceInMinutes, isSameMonth as dateFnsIsSameMonth } from 'date-fns';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
@@ -166,6 +166,19 @@ function WorkoutCalendar({ workouts, currentDate, onMonthChange }: WorkoutCalend
 
   const handleNextMonth = () => {
     onMonthChange(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  };
+
+  // Add helper function to check if current month
+  const isCurrentMonth = dateFnsIsSameMonth(currentDate, new Date());
+  const today = new Date();
+  const daysElapsed = isCurrentMonth ? today.getDate() : days.length;
+  const daysRemaining = isCurrentMonth ? days.length - daysElapsed : 0;
+
+  // Calculate projected stats for current month
+  const calculateProjectedStats = (current: number) => {
+    if (!isCurrentMonth) return null;
+    const dailyAverage = current / daysElapsed;
+    return Math.round(dailyAverage * days.length);
   };
 
   return (
@@ -341,7 +354,7 @@ function WorkoutCalendar({ workouts, currentDate, onMonthChange }: WorkoutCalend
       {/* Monthly Summary */}
       <Paper
         sx={{
-          p: 2,
+          p: { xs: 1.5, sm: 2 },
           borderRadius: 2,
           boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
           background: 'linear-gradient(145deg, #1e1e1e 0%, #2d2d2d 100%)',
@@ -354,107 +367,219 @@ function WorkoutCalendar({ workouts, currentDate, onMonthChange }: WorkoutCalend
           variant="h6" 
           sx={{ 
             color: 'primary.main',
-            mb: 2,
+            mb: { xs: 1.5, sm: 2 },
             display: 'flex',
             alignItems: 'center',
             gap: 1,
             justifyContent: 'center',
+            fontSize: { xs: '1.1rem', sm: '1.25rem' }
           }}
         >
-          <CalendarMonthIcon />
+          <CalendarMonthIcon sx={{ fontSize: { xs: '1.2rem', sm: '1.5rem' } }} />
           {format(currentDate, 'MMMM yyyy')} Summary
+          {isCurrentMonth && (
+            <Typography 
+              component="span" 
+              variant="caption" 
+              sx={{ 
+                color: 'text.secondary',
+                fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                ml: 1,
+                bgcolor: 'rgba(144, 202, 249, 0.1)',
+                px: 1,
+                py: 0.25,
+                borderRadius: 1,
+              }}
+            >
+              {daysElapsed}/{days.length} days
+            </Typography>
+          )}
         </Typography>
 
-        <Grid 
-          container 
-          spacing={2} 
-          justifyContent="center"
+        <Stack 
+          spacing={{ xs: 1.5, sm: 2 }}
           sx={{ maxWidth: '500px', mx: 'auto' }}
         >
-          <Grid item xs={12} sm={4} sx={{ minWidth: '140px' }}>
-            <Box sx={{ 
-              p: 1.5, 
-              borderRadius: 1,
-              bgcolor: 'rgba(144, 202, 249, 0.1)',
-              border: '1px solid rgba(144, 202, 249, 0.2)',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              textAlign: 'center',
+          {/* Workout Consistency */}
+          <Box sx={{ 
+            p: { xs: 1, sm: 1.5 },
+            borderRadius: 1,
+            bgcolor: 'rgba(144, 202, 249, 0.1)',
+            border: '1px solid rgba(144, 202, 249, 0.2)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textAlign: 'center',
+          }}>
+            <Typography variant="caption" color="text.secondary" sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 0.5, 
+              mb: 0.5,
+              fontSize: { xs: '0.7rem', sm: '0.75rem' }
             }}>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-                <AccessTimeIcon fontSize="small" />
-                Total Workout Time
+              <CalendarMonthIcon sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }} />
+              Workout Consistency
+            </Typography>
+            <Typography variant="h6" color="primary.main" sx={{ 
+              fontSize: { xs: '1rem', sm: '1.25rem' }
+            }}>
+              {Math.round((monthlyStats.totalWorkouts / daysElapsed) * 100)}% of days
+            </Typography>
+            {isCurrentMonth && (
+              <Typography variant="caption" color="primary.light" sx={{ 
+                fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                mt: 0.5
+              }}>
+                Projected: {calculateProjectedStats(monthlyStats.totalWorkouts)} days
               </Typography>
-              <Typography variant="h6" color="primary.main">
-                {Math.round(monthlyStats.estimatedMinutes / 60)} hours
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {monthlyStats.estimatedMinutes} minutes
-              </Typography>
-            </Box>
-          </Grid>
+            )}
+            <Typography variant="caption" color="text.secondary" sx={{ 
+              fontSize: { xs: '0.7rem', sm: '0.75rem' },
+              mt: 0.5
+            }}>
+              {monthlyStats.totalWorkouts} workout days
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ 
+              fontSize: { xs: '0.7rem', sm: '0.75rem' }
+            }}>
+              {Math.round((monthlyStats.totalWorkouts / daysElapsed) * 7)} workouts per week
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ 
+              fontSize: { xs: '0.7rem', sm: '0.75rem' }
+            }}>
+              {Math.round(monthlyStats.estimatedMinutes / monthlyStats.totalWorkouts)} min avg per workout
+            </Typography>
+          </Box>
 
-          <Grid item xs={12} sm={4} sx={{ minWidth: '140px' }}>
-            <Box sx={{ 
-              p: 1.5, 
-              borderRadius: 1,
-              bgcolor: 'rgba(244, 143, 177, 0.1)',
-              border: '1px solid rgba(244, 143, 177, 0.2)',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              textAlign: 'center',
+          {/* Training Volume */}
+          <Box sx={{ 
+            p: { xs: 1, sm: 1.5 },
+            borderRadius: 1,
+            bgcolor: 'rgba(244, 143, 177, 0.1)',
+            border: '1px solid rgba(244, 143, 177, 0.2)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textAlign: 'center',
+          }}>
+            <Typography variant="caption" color="text.secondary" sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 0.5, 
+              mb: 0.5,
+              fontSize: { xs: '0.7rem', sm: '0.75rem' }
             }}>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-                <FitnessCenterIcon fontSize="small" />
-                Workouts
+              <FitnessCenterIcon sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }} />
+              Training Volume
+            </Typography>
+            <Typography variant="h6" color="secondary.main" sx={{ 
+              fontSize: { xs: '1rem', sm: '1.25rem' }
+            }}>
+              {monthlyStats.totalSets} total sets
+            </Typography>
+            {isCurrentMonth && (
+              <Typography variant="caption" color="secondary.light" sx={{ 
+                fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                mt: 0.5
+              }}>
+                Projected: {calculateProjectedStats(monthlyStats.totalSets)} sets
               </Typography>
-              <Typography variant="h6" color="secondary.main">
-                {monthlyStats.totalWorkouts} days
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {monthlyStats.totalSets} total sets
-              </Typography>
-            </Box>
-          </Grid>
+            )}
+            <Typography variant="caption" color="text.secondary" sx={{ 
+              fontSize: { xs: '0.7rem', sm: '0.75rem' }
+            }}>
+              {Math.round(monthlyStats.totalSets / monthlyStats.totalWorkouts)} sets per workout
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ 
+              fontSize: { xs: '0.7rem', sm: '0.75rem' },
+              mt: 0.5
+            }}>
+              {Math.round((monthlyStats.totalSets / daysElapsed) * 7)} sets per week
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ 
+              fontSize: { xs: '0.7rem', sm: '0.75rem' }
+            }}>
+              {Math.round(monthlyStats.estimatedMinutes / 60)} total hours
+              {isCurrentMonth && ` (${Math.round((monthlyStats.estimatedMinutes / daysElapsed) * days.length / 60)} projected)`}
+            </Typography>
+          </Box>
 
-          <Grid item xs={12} sm={4} sx={{ minWidth: '140px' }}>
-            <Box sx={{ 
-              p: 1.5, 
-              borderRadius: 1,
-              bgcolor: 'rgba(102, 187, 106, 0.1)',
-              border: '1px solid rgba(102, 187, 106, 0.2)',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              textAlign: 'center',
+          {/* Training Split */}
+          <Box sx={{ 
+            p: { xs: 1, sm: 1.5 },
+            borderRadius: 1,
+            bgcolor: 'rgba(102, 187, 106, 0.1)',
+            border: '1px solid rgba(102, 187, 106, 0.2)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textAlign: 'center',
+          }}>
+            <Typography variant="caption" color="text.secondary" sx={{ 
+              mb: 0.5,
+              fontSize: { xs: '0.7rem', sm: '0.75rem' }
             }}>
-              <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
-                Exercise Types
-              </Typography>
-              <Stack spacing={0.5} alignItems="center">
-                {Object.entries(exerciseCategories).map(([category, { color }]) => (
-                  <Box key={category} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box sx={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      backgroundColor: color,
-                      boxShadow: `0 0 4px ${color}`,
-                    }} />
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      {category}: {monthlyStats.categoryCounts[category] || 0}
-                    </Typography>
+              Training Split {isCurrentMonth && '(Current Pace)'}
+            </Typography>
+            <Stack spacing={0.5} alignItems="center" sx={{ width: '100%' }}>
+              {Object.entries(exerciseCategories).map(([category, { color }]) => {
+                const count = monthlyStats.categoryCounts[category] || 0;
+                const percentage = Math.round((count / monthlyStats.totalSets) * 100) || 0;
+                const setsPerWeek = Math.round((count / daysElapsed) * 7 * 10) / 10;
+                const projectedSets = isCurrentMonth ? Math.round((count / daysElapsed) * days.length) : null;
+                
+                return (
+                  <Box key={category} sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 1,
+                    width: '100%',
+                    justifyContent: 'space-between',
+                    px: { xs: 1, sm: 2 }
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Box sx={{
+                        width: { xs: 6, sm: 8 },
+                        height: { xs: 6, sm: 8 },
+                        borderRadius: '50%',
+                        backgroundColor: color,
+                        boxShadow: `0 0 4px ${color}`,
+                      }} />
+                      <Typography variant="caption" sx={{ 
+                        color: 'text.secondary',
+                        fontSize: { xs: '0.7rem', sm: '0.75rem' }
+                      }}>
+                        {category}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="caption" sx={{ 
+                        color: 'text.secondary',
+                        fontSize: { xs: '0.7rem', sm: '0.75rem' }
+                      }}>
+                        {percentage}% ({setsPerWeek}/week)
+                        {isCurrentMonth && projectedSets && (
+                          <Typography 
+                            component="span" 
+                            variant="caption" 
+                            sx={{ 
+                              color: 'primary.light',
+                              ml: 0.5,
+                              fontSize: { xs: '0.7rem', sm: '0.75rem' }
+                            }}
+                          >
+                            ({projectedSets} projected)
+                          </Typography>
+                        )}
+                      </Typography>
+                    </Box>
                   </Box>
-                ))}
-              </Stack>
-            </Box>
-          </Grid>
-        </Grid>
+                );
+              })}
+            </Stack>
+          </Box>
+        </Stack>
       </Paper>
     </Stack>
   );

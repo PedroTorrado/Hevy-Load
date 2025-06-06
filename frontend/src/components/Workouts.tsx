@@ -30,7 +30,8 @@ import MenuIcon from '@mui/icons-material/Menu';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import RemoveIcon from '@mui/icons-material/Remove';
-import { format, parse, differenceInMinutes, startOfMonth, endOfMonth, isSameMonth } from 'date-fns';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import { format, parse, differenceInMinutes, startOfMonth, endOfMonth, isSameMonth, isToday, isSameDay, eachDayOfInterval, isSameMonth as dateFnsIsSameMonth } from 'date-fns';
 import axios from 'axios';
 import Navigation from './Navigation';
 import WorkoutCalendar, { exerciseCategories } from './WorkoutCalendar';
@@ -612,30 +613,37 @@ Request Info:
                 <Grid item xs={12} md={5}>
                   <Paper
                     sx={{
-                      p: { xs: 2, sm: 3 },
+                      p: { xs: 1.5, sm: 2 },
                       borderRadius: 2,
                       boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
                       background: 'linear-gradient(145deg, #1e1e1e 0%, #2d2d2d 100%)',
                       border: '1px solid rgba(144, 202, 249, 0.1)',
                       height: '100%',
-                      minHeight: { xs: 'auto', sm: '300px' }
+                      minHeight: { xs: 'auto', sm: '300px' },
+                      maxWidth: '600px',
+                      mx: 'auto',
                     }}
                   >
                     <Typography 
                       variant="h6" 
                       sx={{ 
                         color: 'primary.main',
-                        mb: 2,
+                        mb: { xs: 1.5, sm: 2 },
                         display: 'flex',
                         alignItems: 'center',
                         gap: 1,
+                        justifyContent: 'center',
+                        fontSize: { xs: '1.1rem', sm: '1.25rem' }
                       }}
                     >
-                      <TrendingUpIcon />
+                      <TrendingUpIcon sx={{ fontSize: { xs: '1.2rem', sm: '1.5rem' } }} />
                       Monthly Comparison
                     </Typography>
 
-                    <Stack spacing={2}>
+                    <Stack 
+                      spacing={{ xs: 1.5, sm: 2 }}
+                      sx={{ maxWidth: '500px', mx: 'auto' }}
+                    >
                       {/* Get previous month's data */}
                       {(() => {
                         const prevMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
@@ -666,11 +674,25 @@ Request Info:
                         });
 
                         // Calculate current month's stats
+                        const isCurrentMonth = dateFnsIsSameMonth(currentDate, new Date());
+                        const today = new Date();
+                        const daysElapsed = isCurrentMonth ? today.getDate() : 30;
+                        const daysRemaining = isCurrentMonth ? 30 - daysElapsed : 0;
+
+                        // Calculate projected stats for current month
+                        const calculateProjectedStats = (current: number) => {
+                          if (!isCurrentMonth) return null;
+                          const dailyAverage = current / daysElapsed;
+                          return Math.round(dailyAverage * 30);
+                        };
+
                         const currentMonthStats = {
                           totalWorkouts: new Set(workouts.map(w => format(new Date(w.start_time), 'yyyy-MM-dd'))).size,
                           totalSets: workouts.length,
                           estimatedMinutes: workouts.length * 2,
                           categoryCounts: {} as Record<string, number>,
+                          daysElapsed,
+                          isCurrentMonth,
                         };
 
                         // Calculate category counts for current month
@@ -704,113 +726,244 @@ Request Info:
 
                         return (
                           <>
-                            {/* Workout Days Comparison */}
+                            {/* Workout Consistency Comparison */}
                             <Box sx={{ 
-                              p: 1.5, 
+                              p: { xs: 1, sm: 1.5 },
                               borderRadius: 1,
                               bgcolor: 'rgba(144, 202, 249, 0.1)',
                               border: '1px solid rgba(144, 202, 249, 0.2)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              textAlign: 'center',
                             }}>
-                              <Typography variant="subtitle2" color="primary.main" sx={{ mb: 1 }}>
-                                Workout Days
+                              <Typography variant="caption" color="text.secondary" sx={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: 0.5, 
+                                mb: 0.5,
+                                fontSize: { xs: '0.7rem', sm: '0.75rem' }
+                              }}>
+                                <CalendarMonthIcon sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }} />
+                                Workout Consistency
+                                {isCurrentMonth && (
+                                  <Typography 
+                                    component="span" 
+                                    variant="caption" 
+                                    sx={{ 
+                                      color: 'primary.light',
+                                      ml: 0.5,
+                                      fontSize: { xs: '0.7rem', sm: '0.75rem' }
+                                    }}
+                                  >
+                                    ({daysElapsed}/30 days)
+                                  </Typography>
+                                )}
                               </Typography>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Box>
-                                  <Typography variant="h6" color="primary.main">
-                                    {currentMonthStats.totalWorkouts}
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    {format(currentDate, 'MMM yyyy')}
-                                  </Typography>
-                                </Box>
-                                <Box sx={{ textAlign: 'right' }}>
-                                  <Typography variant="h6" color={getChangeColor(currentMonthStats.totalWorkouts, prevMonthStats.totalWorkouts)}>
-                                    {getChangeText(currentMonthStats.totalWorkouts, prevMonthStats.totalWorkouts)}
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    vs {format(prevMonth, 'MMM yyyy')}
-                                  </Typography>
-                                </Box>
+                              <Typography variant="h6" color="primary.main" sx={{ 
+                                fontSize: { xs: '1rem', sm: '1.25rem' }
+                              }}>
+                                {Math.round((currentMonthStats.totalWorkouts / daysElapsed) * 100)}% of days
+                              </Typography>
+                              {isCurrentMonth && (
+                                <Typography variant="caption" color="primary.light" sx={{ 
+                                  fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                  mt: 0.5
+                                }}>
+                                  Projected: {calculateProjectedStats(currentMonthStats.totalWorkouts)} days
+                                </Typography>
+                              )}
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                {getChangeIcon(
+                                  Math.round((currentMonthStats.totalWorkouts / daysElapsed) * 100),
+                                  Math.round((prevMonthStats.totalWorkouts / 30) * 100)
+                                )}
+                                <Typography 
+                                  variant="caption" 
+                                  color={getChangeColor(
+                                    Math.round((currentMonthStats.totalWorkouts / daysElapsed) * 100),
+                                    Math.round((prevMonthStats.totalWorkouts / 30) * 100)
+                                  )}
+                                  sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
+                                >
+                                  {getChangeText(
+                                    Math.round((currentMonthStats.totalWorkouts / daysElapsed) * 100),
+                                    Math.round((prevMonthStats.totalWorkouts / 30) * 100)
+                                  )}
+                                </Typography>
                               </Box>
+                              <Typography variant="caption" color="text.secondary" sx={{ 
+                                fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                mt: 0.5
+                              }}>
+                                {currentMonthStats.totalWorkouts} vs {prevMonthStats.totalWorkouts} days
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" sx={{ 
+                                fontSize: { xs: '0.7rem', sm: '0.75rem' }
+                              }}>
+                                {Math.round((currentMonthStats.totalWorkouts / daysElapsed) * 7)} vs {Math.round(prevMonthStats.totalWorkouts / 4)} per week
+                              </Typography>
                             </Box>
 
-                            {/* Total Sets Comparison */}
+                            {/* Training Volume Comparison */}
                             <Box sx={{ 
-                              p: 1.5, 
+                              p: { xs: 1, sm: 1.5 },
                               borderRadius: 1,
                               bgcolor: 'rgba(244, 143, 177, 0.1)',
                               border: '1px solid rgba(244, 143, 177, 0.2)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              textAlign: 'center',
                             }}>
-                              <Typography variant="subtitle2" color="secondary.main" sx={{ mb: 1 }}>
-                                Total Sets
+                              <Typography variant="caption" color="text.secondary" sx={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: 0.5, 
+                                mb: 0.5,
+                                fontSize: { xs: '0.7rem', sm: '0.75rem' }
+                              }}>
+                                <FitnessCenterIcon sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }} />
+                                Training Volume
+                                {isCurrentMonth && (
+                                  <Typography 
+                                    component="span" 
+                                    variant="caption" 
+                                    sx={{ 
+                                      color: 'secondary.light',
+                                      ml: 0.5,
+                                      fontSize: { xs: '0.7rem', sm: '0.75rem' }
+                                    }}
+                                  >
+                                    (Current Pace)
+                                  </Typography>
+                                )}
                               </Typography>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Box>
-                                  <Typography variant="h6" color="secondary.main">
-                                    {currentMonthStats.totalSets}
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    {format(currentDate, 'MMM yyyy')}
-                                  </Typography>
-                                </Box>
-                                <Box sx={{ textAlign: 'right' }}>
-                                  <Typography variant="h6" color={getChangeColor(currentMonthStats.totalSets, prevMonthStats.totalSets)}>
-                                    {getChangeText(currentMonthStats.totalSets, prevMonthStats.totalSets)}
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    vs {format(prevMonth, 'MMM yyyy')}
-                                  </Typography>
-                                </Box>
+                              <Typography variant="h6" color="secondary.main" sx={{ 
+                                fontSize: { xs: '1rem', sm: '1.25rem' }
+                              }}>
+                                {Math.round((currentMonthStats.totalSets / daysElapsed) * 7)} sets/week
+                              </Typography>
+                              {isCurrentMonth && (
+                                <Typography variant="caption" color="secondary.light" sx={{ 
+                                  fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                  mt: 0.5
+                                }}>
+                                  Projected: {calculateProjectedStats(currentMonthStats.totalSets)} total sets
+                                </Typography>
+                              )}
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                {getChangeIcon(
+                                  Math.round((currentMonthStats.totalSets / daysElapsed) * 7),
+                                  Math.round(prevMonthStats.totalSets / 4)
+                                )}
+                                <Typography 
+                                  variant="caption" 
+                                  color={getChangeColor(
+                                    Math.round((currentMonthStats.totalSets / daysElapsed) * 7),
+                                    Math.round(prevMonthStats.totalSets / 4)
+                                  )}
+                                  sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
+                                >
+                                  {getChangeText(
+                                    Math.round((currentMonthStats.totalSets / daysElapsed) * 7),
+                                    Math.round(prevMonthStats.totalSets / 4)
+                                  )}
+                                </Typography>
                               </Box>
+                              <Typography variant="caption" color="text.secondary" sx={{ 
+                                fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                mt: 0.5
+                              }}>
+                                {Math.round(currentMonthStats.totalSets / currentMonthStats.totalWorkouts)} vs {Math.round(prevMonthStats.totalSets / prevMonthStats.totalWorkouts)} sets/workout
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" sx={{ 
+                                fontSize: { xs: '0.7rem', sm: '0.75rem' }
+                              }}>
+                                {Math.round(currentMonthStats.estimatedMinutes / 60)} vs {Math.round(prevMonthStats.estimatedMinutes / 60)} total hours
+                                {isCurrentMonth && ` (${Math.round((currentMonthStats.estimatedMinutes / daysElapsed) * 30 / 60)} projected)`}
+                              </Typography>
                             </Box>
 
-                            {/* Exercise Type Comparison */}
+                            {/* Training Split Comparison */}
                             <Box sx={{ 
-                              p: 1.5, 
+                              p: { xs: 1, sm: 1.5 },
                               borderRadius: 1,
                               bgcolor: 'rgba(102, 187, 106, 0.1)',
                               border: '1px solid rgba(102, 187, 106, 0.2)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              textAlign: 'center',
                             }}>
-                              <Typography variant="subtitle2" color="success.main" sx={{ mb: 1 }}>
-                                Exercise Types
+                              <Typography variant="caption" color="text.secondary" sx={{ 
+                                mb: 0.5,
+                                fontSize: { xs: '0.7rem', sm: '0.75rem' }
+                              }}>
+                                Training Split Changes {isCurrentMonth && '(Current Pace)'}
                               </Typography>
-                              <Stack spacing={1}>
+                              <Stack spacing={0.5} alignItems="center" sx={{ width: '100%' }}>
                                 {(Object.entries(exerciseCategories) as [keyof typeof exerciseCategories, ExerciseCategory][]).map(([category, { color }]) => {
                                   const current = currentMonthStats.categoryCounts[category] || 0;
                                   const previous = prevMonthStats.categoryCounts[category] || 0;
+                                  const currentWeekly = Math.round((current / daysElapsed) * 7 * 10) / 10;
+                                  const previousWeekly = Math.round((previous / 30) * 7 * 10) / 10;
+                                  const weeklyChange = Math.round((currentWeekly - previousWeekly) * 10) / 10;
+                                  const projectedSets = isCurrentMonth ? Math.round((current / daysElapsed) * 30) : null;
+                                  
                                   return (
                                     <Box key={category} sx={{ 
                                       display: 'flex', 
+                                      alignItems: 'center', 
+                                      gap: 1,
+                                      width: '100%',
                                       justifyContent: 'space-between',
-                                      alignItems: 'center',
+                                      px: { xs: 1, sm: 2 }
                                     }}>
-                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                         <Box sx={{
-                                          width: 8,
-                                          height: 8,
+                                          width: { xs: 6, sm: 8 },
+                                          height: { xs: 6, sm: 8 },
                                           borderRadius: '50%',
                                           backgroundColor: color,
                                           boxShadow: `0 0 4px ${color}`,
                                         }} />
-                                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                                        <Typography variant="caption" sx={{ 
+                                          color: 'text.secondary',
+                                          fontSize: { xs: '0.7rem', sm: '0.75rem' }
+                                        }}>
                                           {category}
                                         </Typography>
                                       </Box>
                                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                                          {current}
+                                        <Typography variant="caption" sx={{ 
+                                          color: 'text.secondary',
+                                          fontSize: { xs: '0.7rem', sm: '0.75rem' }
+                                        }}>
+                                          {currentWeekly.toFixed(1)}/week
+                                          {isCurrentMonth && projectedSets && (
+                                            <Typography 
+                                              component="span" 
+                                              variant="caption" 
+                                              sx={{ 
+                                                color: 'primary.light',
+                                                ml: 0.5,
+                                                fontSize: { xs: '0.7rem', sm: '0.75rem' }
+                                              }}
+                                            >
+                                              ({projectedSets} projected)
+                                            </Typography>
+                                          )}
                                         </Typography>
-                                        <Typography 
-                                          variant="caption" 
-                                          sx={{ 
-                                            color: getChangeColor(current, previous),
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                          }}
-                                        >
-                                          {getChangeIcon(current, previous)}
-                                          {getChangeText(current, previous)}
-                                        </Typography>
+                                        {weeklyChange !== 0 && (
+                                          <Typography 
+                                            variant="caption" 
+                                            color={weeklyChange > 0 ? 'success.main' : 'error.main'}
+                                            sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
+                                          >
+                                            ({weeklyChange > 0 ? '+' : ''}{weeklyChange.toFixed(1)})
+                                          </Typography>
+                                        )}
                                       </Box>
                                     </Box>
                                   );
