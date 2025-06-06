@@ -15,7 +15,6 @@ services:
       start_period: 30s
 
   backend:
-    image: $DOCKERHUB_USERNAME/hevy-load-backend:latest
     build:
       context: .
       dockerfile: Dockerfile.backend
@@ -31,7 +30,6 @@ services:
       - PYTHONUNBUFFERED=1
 
   frontend:
-    image: $DOCKERHUB_USERNAME/hevy-load-frontend:latest
     build:
       context: .
       dockerfile: Dockerfile.frontend
