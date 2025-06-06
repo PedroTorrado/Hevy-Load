@@ -80,15 +80,15 @@ const pulseKeyframes = {
   '@keyframes pulse': {
     '0%': {
       transform: 'scale(1)',
-      boxShadow: '0 3px 5px 2px rgba(76, 175, 8080, .3)',
+      boxShadow: '0 3px 5px 2px rgba(76, 175, 80, .3)',
     },
     '50%': {
       transform: 'scale(1.05)',
-      boxShadow: '0 5px 15px 2px rgba(76, 175, 8080, .5)',
+      boxShadow: '0 5px 15px 2px rgba(76, 175, 80, .5)',
     },
     '100%': {
       transform: 'scale(1)',
-      boxShadow: '0 3px 5px 2px rgba(76, 175, 8080, .3)',
+      boxShadow: '0 3px 5px 2px rgba(76, 175, 80, .3)',
     },
   },
 };
@@ -212,7 +212,7 @@ function LandingPage() {
             left: 0,
             right: 0,
             height: '4px',
-            background: `linear-gradient(90deg, ${color} 0%, ${color}8080 100%)`,
+            background: `linear-gradient(90deg, ${color} 0%, ${color}80 100%)`,
           },
           transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
           '&:hover': {
@@ -487,7 +487,7 @@ function LandingPage() {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            minHeight: '8080vh',
+            minHeight: '80vh',
             textAlign: 'center'
           }}>
             <Typography variant="h2" component="h1" gutterBottom sx={{ 
@@ -606,7 +606,7 @@ function LandingPage() {
                     ? 'linear-gradient(45deg, #4caf50 30%, #45a049 90%)'
                     : 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
                   boxShadow: uploadSuccess
-                    ? '0 3px 5px 2px rgba(76, 175, 8080, .3)'
+                    ? '0 3px 5px 2px rgba(76, 175, 80, .3)'
                     : '0 3px 5px 2px rgba(144, 202, 249, .3)',
                   animation: uploadSuccess ? 'pulse 2s infinite' : 'none',
                   ...pulseKeyframes,
