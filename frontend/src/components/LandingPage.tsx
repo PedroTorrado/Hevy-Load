@@ -81,7 +81,7 @@ interface Workout {
   reps: number;
 }
 
-// PowerliftingMetrics interface (no ipfPoints)
+// PowerliftingMetrics interface(no ipfPoints)
 interface PowerliftingMetrics {
   dots: number;
   wilks: number;
