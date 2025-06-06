@@ -65,7 +65,7 @@ RUN mkdir -p /etc/nginx/ssl
 
 # Create nginx configuration with SSL
 RUN echo 'server {\n\
-    listen 80;\n\
+    listen 8080;\n\
     server_name localhost;\n\
     \n\
     location / {\n\
@@ -213,7 +213,7 @@ ENV MONGODB_URI=mongodb://localhost:27017/hevy
 ENV PORT=5001
 
 # Expose ports
-EXPOSE 80 443 5001 27017
+EXPOSE 8080 443 5001 27017
 
 # Start both services
 CMD ["/app/start.sh"] 
