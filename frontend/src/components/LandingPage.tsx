@@ -12,10 +12,16 @@ import {
   CircularProgress,
   Grid,
   Alert,
-  Snackbar
+  Snackbar,
+  Slider,
+  TextField,
+  InputAdornment,
+  IconButton,
+  Tooltip
 } from '@mui/material';
 import axios from 'axios';
 import Navigation from './Navigation';
+import InfoIcon from '@mui/icons-material/Info';
 
 // API URL configuration - automatically detect server address
 const getApiUrl = () => {
@@ -75,22 +81,119 @@ interface Workout {
   reps: number;
 }
 
-// Add keyframes definition at the top level
-const pulseKeyframes = {
-  '@keyframes pulse': {
-    '0%': {
-      transform: 'scale(1)',
-      boxShadow: '0 3px 5px 2px rgba(76, 175, 80, .3)',
-    },
-    '50%': {
-      transform: 'scale(1.05)',
-      boxShadow: '0 5px 15px 2px rgba(76, 175, 80, .5)',
-    },
-    '100%': {
-      transform: 'scale(1)',
-      boxShadow: '0 3px 5px 2px rgba(76, 175, 80, .3)',
-    },
-  },
+// PowerliftingMetrics interface (no ipfPoints)
+interface PowerliftingMetrics {
+  dots: number;
+  wilks: number;
+}
+
+// Add weight input interface
+interface WeightInput {
+  bench: number | null;
+  squat: number | null;
+  deadlift: number | null;
+}
+
+// Fix DOTS calculation function with correct official coefficients
+const calculateDOTS = (total: number, bodyweight: number): number => {
+  // Using the official OpenPowerlifting DOTS formula and coefficients (unisex)
+  // Source: https://openpowerlifting.gitlab.io/opl-docs/background/scoring.html
+  const a = 47.46178854;
+  const b = 8.472061379;
+  const c = 0.07369410346;
+  const d = -0.002395190333;
+  const e = 0.0000332659846;
+  const f = -0.00000019333;
+
+  const w = bodyweight;
+  
+  // The formula is a 6-term polynomial: a + b*w + c*w^2 + d*w^3 + e*w^4 + f*w^5
+  const denominator = a + 
+                     (b * w) + 
+                     (c * Math.pow(w, 2)) + 
+                     (d * Math.pow(w, 3)) + 
+                     (e * Math.pow(w, 4)) + 
+                     (f * Math.pow(w, 5));
+                     
+  if (denominator <= 0 || !isFinite(denominator)) {
+    console.error('Invalid DOTS denominator:', denominator);
+    return 0;
+  }
+  
+  // Calculate DOTS score
+  const dots = total * (500 / denominator);
+  
+  console.log('DOTS Calculation:', {
+    total,
+    bodyweight,
+    denominator,
+    dots
+  });
+  
+  // Safety check for final result
+  if (!isFinite(dots) || dots < 0) {
+    console.error('Invalid DOTS score:', dots);
+    return 0;
+  }
+  
+  return Math.round(dots * 100) / 100; // Round to 2 decimal places
+};
+
+// Fix Wilks calculation with verified formula
+const calculateWilks = (total: number, bodyweight: number, isMale: boolean): number => {
+  // Coefficients for Wilks (2017)
+  const coefficients = isMale ? {
+    // Men's coefficients
+    a: -216.0475144,
+    b: 16.2606339,
+    c: -0.002388645,
+    d: -0.00113732,
+    e: 7.01863E-06,
+    f: -1.291E-08
+  } : {
+    // Women's coefficients
+    a: 594.31747775582,
+    b: -27.23842536447,
+    c: 0.82112226871,
+    d: -0.00930733913,
+    e: 4.731582E-05,
+    f: -9.054E-08
+  };
+  
+  // Calculate denominator using kg values
+  const bw = bodyweight;
+  const denominator = coefficients.a + 
+                     coefficients.b * bw + 
+                     coefficients.c * Math.pow(bw, 2) + 
+                     coefficients.d * Math.pow(bw, 3) + 
+                     coefficients.e * Math.pow(bw, 4) + 
+                     coefficients.f * Math.pow(bw, 5);
+  
+  // Safety check
+  if (denominator <= 0 || !isFinite(denominator)) {
+    console.error('Invalid Wilks denominator:', denominator);
+    return 0;
+  }
+  
+  // Calculate Wilks score using kg values
+  const wilks = 500 / denominator;
+  const score = total * wilks;
+  
+  console.log('Wilks Calculation:', {
+    total,
+    bodyweight,
+    denominator,
+    wilks,
+    score
+  });
+  
+  // Safety check for final result
+  if (!isFinite(score) || score < 0) {
+    console.error('Invalid Wilks score:', score);
+    return 0;
+  }
+  
+  return Math.round(score * 100) / 100; // Round to 2 decimal places
 };
 
 function LandingPage() {
@@ -99,6 +202,9 @@ function LandingPage() {
   const [uploadLoading, setUploadLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [bodyweight, setBodyweight] = useState<number | null>(null);
+  const [isMale, setIsMale] = useState<boolean>(true);
+  const [metrics, setMetrics] = useState<PowerliftingMetrics | null>(null);
   const [prs, setPrs] = useState<{
     bench: { weight: number; reps: number; date: string; firstAchieved: string } | null;
     squat: { weight: number; reps: number; date: string; firstAchieved: string } | null;
@@ -108,6 +214,26 @@ function LandingPage() {
     squat: null,
     deadlift: null
   });
+
+  // getClassification only accepts 'dots' or 'wilks'
+  const getClassification = (score: number, metric: 'dots' | 'wilks'): string => {
+    switch (metric) {
+      case 'dots':
+        if (score >= 500) return 'Elite';
+        if (score >= 400) return 'Advanced';
+        if (score >= 275) return 'Intermediate';
+        if (score >= 200) return 'Novice';
+        return 'Beginner';
+      case 'wilks':
+        if (score >= 400) return 'Elite';
+        if (score >= 325) return 'Advanced';
+        if (score >= 250) return 'Intermediate';
+        if (score >= 175) return 'Novice';
+        return 'Beginner';
+      default:
+        return 'Beginner';
+    }
+  };
 
   const fetchPRs = async () => {
     try {
@@ -171,6 +297,21 @@ function LandingPage() {
   useEffect(() => {
     fetchPRs();
   }, []);
+
+  // In useEffect, only calculate and set dots and wilks
+  useEffect(() => {
+    if (bodyweight && prs.bench && prs.squat && prs.deadlift) {
+      const total = prs.bench.weight + prs.squat.weight + prs.deadlift.weight;
+      const dots = calculateDOTS(total, bodyweight);
+      const wilks = calculateWilks(total, bodyweight, isMale);
+      setMetrics({
+        dots,
+        wilks
+      });
+    } else {
+      setMetrics(null);
+    }
+  }, [bodyweight, isMale, prs]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -470,6 +611,321 @@ function LandingPage() {
     }
   };
 
+  // Update PowerliftingMetricsCard to only show DOTS and Wilks
+  const PowerliftingMetricsCard = () => {
+    if (!metrics) return null;
+    return (
+      <Paper 
+        sx={{ 
+          p: 4,
+          borderRadius: 2,
+          background: 'linear-gradient(145deg, #1e1e1e 0%, #2a2a2a 100%)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          mt: 3,
+          width: '100%',
+        }}
+      >
+        <Typography variant="h5" sx={{ mb: 3, color: 'primary.main' }}>
+          Powerlifting Metrics
+        </Typography>
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={6}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h6" sx={{ color: 'text.secondary' }}>DOTS Score</Typography>
+              <Typography variant="h4" sx={{ color: '#90caf9' }}>{metrics.dots}</Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
+                {getClassification(metrics.dots, 'dots')}
+              </Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h6" sx={{ color: 'text.secondary' }}>Wilks Score</Typography>
+              <Typography variant="h4" sx={{ color: '#f48fb1' }}>{metrics.wilks}</Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
+                {getClassification(metrics.wilks, 'wilks')}
+              </Typography>
+            </Box>
+          </Grid>
+        </Grid>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 3, textAlign: 'center' }}>
+          Note: These scores are calculated using your total (bench + squat + deadlift) and bodyweight.
+          DOTS and Wilks points are relative strength scores that help compare lifters of different bodyweights.
+        </Typography>
+      </Paper>
+    );
+  };
+
+  // Update the WeightInputCard component
+  const WeightInputCard = () => {
+    const [localWeight, setLocalWeight] = useState<string>(bodyweight?.toString() || '');
+    const [touched, setTouched] = useState(false);
+    // Handle weight changes
+    const handleWeightChange = (newValue: number | string) => {
+      const numValue = typeof newValue === 'string' ? parseFloat(newValue) : newValue;
+      if (!isNaN(numValue) && numValue >= 30 && numValue <= 200) {
+        setBodyweight(numValue);
+        setLocalWeight(numValue.toString());
+      } else if (newValue === '') {
+        setBodyweight(null);
+        setLocalWeight('');
+      }
+    };
+
+    // Handle text input changes
+    const handleTextChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value;
+      setLocalWeight(value);
+      if (value === '') {
+        setBodyweight(null);
+      } else {
+        const numValue = parseFloat(value);
+        if (!isNaN(numValue) && numValue >= 30 && numValue <= 200) {
+          setBodyweight(numValue);
+        }
+      }
+    };
+
+    // Handle increment/decrement
+    const handleIncrement = (amount: number) => {
+      const currentValue = bodyweight || 0;
+      const newValue = Math.min(Math.max(currentValue + amount, 30), 200);
+      handleWeightChange(newValue);
+    };
+
+    const isInvalid = localWeight !== '' && (parseFloat(localWeight) < 30 || parseFloat(localWeight) > 200);
+
+    return (
+      <Paper 
+        sx={{ 
+          p: 4,
+          borderRadius: 2,
+          background: 'linear-gradient(145deg, #1e1e1e 0%, #2a2a2a 100%)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          mt: 3,
+          width: '100%',
+          position: 'relative',
+          overflow: 'hidden',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '4px',
+            background: 'linear-gradient(90deg, #90caf9 0%, #64b5f6 100%)',
+          },
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h5" sx={{ color: 'primary.main', flex: 1 }}>
+            Enter Your Bodyweight
+          </Typography>
+        </Box>
+
+        <Box sx={{display: 'flex', alignItems: 'center', justifyContent: 'center', width: 'auto', height: '44px' }}>
+          <TextField
+            value={localWeight}
+            onChange={handleTextChange}
+            type="number"
+            label=" "
+            placeholder=" "
+            variant="outlined"
+            InputLabelProps={{ shrink: true }}
+            onBlur={() => setTouched(true)}
+            InputProps={{
+              inputProps: { 
+                min: 30, 
+                max: 200,
+                step: 0.5,
+                style: { textAlign: 'center', fontSize: '1.2rem', width: '100px', padding: 0, MozAppearance: 'textfield', borderRadius: '999px', height: '44px', boxSizing: 'border-box' }
+              },
+              endAdornment: (
+                <InputAdornment position="end" sx={{ ml: 1 }}>
+                  <Box sx={{
+                    px: 2.5,
+                    py: 0,
+                    borderRadius: '999px',
+                    background: 'linear-gradient(90deg, #90caf9 0%, #64b5f6 100%)',
+                    color: 'white',
+                    fontWeight: 600,
+                    fontSize: '1.1rem',
+                    letterSpacing: 1,
+                    minWidth: '36px',
+                    textAlign: 'center',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '44px',
+                    lineHeight: '44px',
+                  }}>
+                    kg
+                  </Box>
+                </InputAdornment>
+              )
+            }}
+            FormHelperTextProps={{ sx: { minHeight: '24px', textAlign: 'center', width: '100%' } }}
+            sx={{
+              width: '170px',
+              height: '44px',
+              '& input[type=number]': {
+                MozAppearance: 'textfield', // Firefox
+                textAlign: 'center',
+              },
+              '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                WebkitAppearance: 'none',
+                margin: 0,
+              },
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '999px',
+                boxShadow: '0 2px 12px 0 rgba(144,202,249,0.10)',
+                background: 'rgba(255,255,255,0.06)',
+                fontSize: '1.2rem',
+                paddingRight: '0px',
+                transition: 'box-shadow 0.2s, border-color 0.2s',
+                height: '44px',
+                display: 'flex',
+                alignItems: 'center',
+                border: '1.5px solid',
+                borderColor: 'primary.light',
+                '&:hover, &.Mui-focused': {
+                  boxShadow: '0 4px 16px 0 rgba(144,202,249,0.18)',
+                  borderColor: 'primary.main',
+                },
+                '& fieldset': {
+                  border: 'none',
+                },
+                justifyContent: 'center',
+              },
+              '& .MuiInputLabel-root': {
+                fontSize: '1rem',
+                color: 'primary.light',
+                fontWeight: 500,
+                letterSpacing: 1,
+                background: 'rgba(30,30,30,0.85)',
+                px: 0.5,
+                borderRadius: '8px',
+                left: '18px',
+                top: '-10px',
+                zIndex: 2,
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: 'primary.main',
+                background: 'rgba(30,30,30,1)',
+              },
+              '& input::placeholder': {
+                color: '#b0c4d8',
+                opacity: 1,
+                fontSize: '1.1rem',
+              },
+              textAlign: 'center',
+            }}
+            error={touched && isInvalid}
+          />
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', mt: 2, mb: 3 }}>
+          <Button
+            variant="outlined"
+            onClick={() => handleIncrement(-1)}
+            sx={{
+              minWidth: '36px',
+              minHeight: '36px',
+              width: '36px',
+              height: '36px',
+              fontSize: '1.3rem',
+              borderRadius: '50%',
+              borderColor: 'primary.main',
+              color: 'primary.main',
+              background: 'rgba(144,202,249,0.03)',
+              boxShadow: 'none',
+              p: 0,
+              transition: 'background 0.2s, border-color 0.2s',
+              '&:hover': {
+                background: 'rgba(144,202,249,0.10)',
+                borderColor: 'primary.light',
+              },
+            }}
+          >
+            –
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={() => handleIncrement(1)}
+            sx={{
+              minWidth: '36px',
+              minHeight: '36px',
+              width: '36px',
+              height: '36px',
+              fontSize: '1.3rem',
+              borderRadius: '50%',
+              borderColor: 'primary.main',
+              color: 'primary.main',
+              background: 'rgba(144,202,249,0.03)',
+              boxShadow: 'none',
+              p: 0,
+              transition: 'background 0.2s, border-color 0.2s',
+              '&:hover': {
+                background: 'rgba(144,202,249,0.10)',
+                borderColor: 'primary.light',
+              },
+            }}
+          >
+            +
+          </Button>
+        </Box>
+
+        {/* Gender selection */}
+        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', mb: 2 }}>
+          <Button
+            variant={isMale ? "contained" : "outlined"}
+            onClick={() => setIsMale(true)}
+            sx={{
+              minWidth: '100px',
+              background: isMale ? 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)' : 'transparent',
+              '&:hover': {
+                background: isMale ? 'linear-gradient(45deg, #64b5f6 30%, #42a5f5 90%)' : 'rgba(144, 202, 249, 0.1)',
+              },
+            }}
+          >
+            Male
+          </Button>
+          <Button
+            variant={!isMale ? "contained" : "outlined"}
+            onClick={() => setIsMale(false)}
+            sx={{
+              minWidth: '100px',
+              background: !isMale ? 'linear-gradient(45deg, #f48fb1 30%, #f06292 90%)' : 'transparent',
+              '&:hover': {
+                background: !isMale ? 'linear-gradient(45deg, #f06292 30%, #ec407a 90%)' : 'rgba(244, 143, 177, 0.1)',
+              },
+            }}
+          >
+            Female
+          </Button>
+        </Box>
+
+        <Typography 
+          variant="body2" 
+          sx={{ 
+            color: 'text.secondary', 
+            mt: 3,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            justifyContent: 'center',
+            '& .MuiSvgIcon-root': {
+              fontSize: '1rem'
+            }
+          }}
+        >
+          <InfoIcon />
+          All calculations use kilograms (kg) for both bodyweight and lifts.
+          Enter a weight between 30kg and 200kg.
+        </Typography>
+      </Paper>
+    );
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -521,29 +977,33 @@ function LandingPage() {
                   <CircularProgress sx={{ color: 'primary.main' }} />
                 </Box>
               ) : (
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={4}>
-                    <PRCard 
-                      title="Bench Press" 
-                      pr={prs.bench} 
-                      color="#90caf9"
-                    />
+                <>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={4}>
+                      <PRCard 
+                        title="Bench Press" 
+                        pr={prs.bench} 
+                        color="#90caf9"
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                      <PRCard 
+                        title="Squat" 
+                        pr={prs.squat} 
+                        color="#f48fb1"
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                      <PRCard 
+                        title="Deadlift" 
+                        pr={prs.deadlift} 
+                        color="#66bb6a"
+                      />
+                    </Grid>
                   </Grid>
-                  <Grid item xs={12} md={4}>
-                    <PRCard 
-                      title="Squat" 
-                      pr={prs.squat} 
-                      color="#f48fb1"
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <PRCard 
-                      title="Deadlift" 
-                      pr={prs.deadlift} 
-                      color="#66bb6a"
-                    />
-                  </Grid>
-                </Grid>
+                  <WeightInputCard />
+                  <PowerliftingMetricsCard />
+                </>
               )}
             </Box>
 
@@ -609,7 +1069,6 @@ function LandingPage() {
                     ? '0 3px 5px 2px rgba(76, 175, 80, .3)'
                     : '0 3px 5px 2px rgba(144, 202, 249, .3)',
                   animation: uploadSuccess ? 'pulse 2s infinite' : 'none',
-                  ...pulseKeyframes,
                   '&:hover': {
                     background: uploadSuccess
                       ? 'linear-gradient(45deg, #45a049 30%, #3d8b40 90%)'
