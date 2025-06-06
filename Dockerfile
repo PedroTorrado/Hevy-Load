@@ -175,15 +175,15 @@ chown mongodb:mongodb /var/log/mongodb.log\n\
 echo "Starting MongoDB with config..."\n\
 cat /etc/mongod.conf\n\
 \n\
-# Start MongoDB as mongodb user\n\
-su - mongodb -c "mongod --config /etc/mongod.conf"\n\
+# Start MongoDB directly (no sudo)\n\
+mongod --config /etc/mongod.conf &\n\
 \n\
 echo "Waiting for MongoDB to be ready..."\n\
 for i in {1..30}; do\n\
-  if mongosh --quiet --eval "db.adminCommand('\''ping'\'')" > /dev/null 2>&1; then\n\
+  if mongosh --quiet --eval "db.adminCommand('ping')" > /dev/null 2>&1; then\n\
     echo "MongoDB is up!"\n\
     # Initialize the database\n\
-    mongosh --quiet --eval "db = db.getSiblingDB('\''hevy'\''); db.createCollection('\''workouts'\'');"\n\
+    mongosh --quiet --eval "db = db.getSiblingDB('hevy'); db.createCollection('workouts');"\n\
     break\n\
   fi\n\
   if [ $i -eq 30 ]; then\n\
