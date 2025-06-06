@@ -116,9 +116,57 @@ interface GroupedWorkout {
   originalItems: Workout[];
 }
 
-// Parse your custom date format "5 Jun 2025, 11:35"
-const parseCustomDate = (dateStr: string) =>
-  parse(dateStr, 'd MMM yyyy, HH:mm', new Date());
+interface ErrorDetails {
+  message: string;
+  technical: {
+    errorType: string;
+    details: string;
+    browserInfo: {
+      userAgent: string;
+      platform: string;
+      vendor: string;
+    };
+    timestamp: string;
+    requestInfo?: {
+      url: string;
+      method: string;
+      status?: number;
+    };
+    dataState?: {
+      workoutsCount: number;
+      filteredCount: number;
+      currentMonth: string;
+    };
+  };
+}
+
+// Parse your custom date format "5 Jun 2025, 11:35" in a more browser-compatible way
+const parseCustomDate = (dateStr: string) => {
+  try {
+    // First try the parse function
+    const parsedDate = parse(dateStr, 'd MMM yyyy, HH:mm', new Date());
+    if (isNaN(parsedDate.getTime())) throw new Error('Invalid date');
+    return parsedDate;
+  } catch (e) {
+    // Fallback: manual parsing
+    const [datePart, timePart] = dateStr.split(', ');
+    const [day, month, year] = datePart.split(' ');
+    const [hours, minutes] = timePart.split(':');
+    
+    const monthMap: { [key: string]: number } = {
+      'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
+      'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
+    };
+    
+    return new Date(
+      parseInt(year),
+      monthMap[month],
+      parseInt(day),
+      parseInt(hours),
+      parseInt(minutes)
+    );
+  }
+};
 
 // Add type definitions
 type ExerciseCategory = {
@@ -131,37 +179,61 @@ type ExerciseCategories = {
   readonly [K in keyof typeof exerciseCategories]: ExerciseCategory;
 };
 
+// API URL configuration - automatically detect server address
+const getApiUrl = () => {
+  const hostname = window.location.hostname;
+  const protocol = window.location.protocol;
+  const port = '5001';
+  
+  // Log connection details for debugging
+  console.log('Current hostname:', hostname);
+  console.log('Current protocol:', protocol);
+  console.log('Current full URL:', window.location.href);
+  
+  // If running locally, use localhost, otherwise use the current hostname
+  const apiUrl = `${protocol}//${hostname === 'localhost' || hostname === '127.0.0.1' ? 'localhost' : hostname}:${port}`;
+  console.log('API URL:', apiUrl);
+  return apiUrl;
+};
+
+const API_URL = getApiUrl();
+
 export default function Workouts() {
     const [groupedWorkouts, setGroupedWorkouts] = useState<GroupedWorkout[]>([]);
     const [allWorkouts, setAllWorkouts] = useState<Workout[]>([]);
     const [workouts, setWorkouts] = useState<Workout[]>([]);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<ErrorDetails | null>(null);
     const [currentDate, setCurrentDate] = useState(new Date());
     const navigate = useNavigate();
     const location = useLocation();
     const muiTheme = useMuiTheme();
     const isMobile = useMediaQuery(muiTheme.breakpoints.down('sm'));
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [showTechnicalError, setShowTechnicalError] = useState(false);
   
-    useEffect(() => {
-      fetchWorkouts();
-    }, []);
-  
-    useEffect(() => {
-      const monthStart = startOfMonth(currentDate);
-      const monthEnd = endOfMonth(currentDate);
-      
-      const filteredWorkouts = allWorkouts.filter(workout => {
-        const workoutDate = new Date(workout.start_time);
-        return workoutDate >= monthStart && workoutDate <= monthEnd;
+    // Function to safely filter workouts by date range
+    const filterWorkoutsByDateRange = (workouts: Workout[], start: Date, end: Date) => {
+      return workouts.filter(workout => {
+        try {
+          const workoutDate = parseCustomDate(workout.start_time);
+          return workoutDate >= start && workoutDate <= end;
+        } catch (e) {
+          console.error('Error parsing date:', workout.start_time, e);
+          return false;
+        }
       });
+    };
 
-      setWorkouts(filteredWorkouts);
-  
-        const groupsMap: Record<string, GroupedWorkout> = {};
-      filteredWorkouts.forEach(workout => {
-        const dateKey = format(new Date(workout.start_time), 'yyyy-MM-dd');
+    // Function to safely group workouts
+    const groupWorkoutsByDate = (workouts: Workout[]) => {
+      const groupsMap: Record<string, GroupedWorkout> = {};
+      
+      workouts.forEach(workout => {
+        try {
+          const workoutDate = parseCustomDate(workout.start_time);
+          const dateKey = format(workoutDate, 'yyyy-MM-dd');
+          
           if (!groupsMap[dateKey]) {
             groupsMap[dateKey] = {
               date: dateKey,
@@ -170,35 +242,147 @@ export default function Workouts() {
               originalItems: [],
             };
           }
+          
           groupsMap[dateKey].originalItems.push(workout);
           if (!groupsMap[dateKey].exercise_titles.includes(workout.exercise_title)) {
             groupsMap[dateKey].exercise_titles.push(workout.exercise_title);
           }
+        } catch (e) {
+          console.error('Error processing workout:', workout, e);
+        }
       });
+      
+      return Object.values(groupsMap).sort((a, b) => b.date.localeCompare(a.date));
+    };
   
-        const groupedArray = Object.values(groupsMap)
-        .sort((a, b) => b.date.localeCompare(a.date));
+    // Helper function to create error details
+    const createError = (message: string, error: any, additionalInfo?: { [key: string]: any }) => {
+      const getBrowserInfo = () => ({
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        vendor: navigator.vendor
+      });
+
+      const getDataState = () => ({
+        workoutsCount: allWorkouts.length,
+        filteredCount: workouts.length,
+        currentMonth: format(currentDate, 'MMMM yyyy')
+      });
+
+      let errorType = 'Unknown Error';
+      let details = 'No additional details available';
+      let requestInfo = undefined;
+
+      if (error instanceof Error) {
+        errorType = error.constructor.name;
+        details = `${error.message}\n${error.stack || ''}`;
+        
+        // Check if it's an Axios error
+        if ('isAxiosError' in error && error.isAxiosError) {
+          const axiosError = error as any;
+          requestInfo = {
+            url: axiosError.config?.url || 'unknown',
+            method: axiosError.config?.method?.toUpperCase() || 'unknown',
+            status: axiosError.response?.status
+          };
+          details = `${details}\nResponse: ${JSON.stringify(axiosError.response?.data || {}, null, 2)}`;
+        }
+      } else if (typeof error === 'string') {
+        errorType = 'String Error';
+        details = error;
+      } else {
+        details = JSON.stringify(error, null, 2);
+      }
+
+      return {
+        message,
+        technical: {
+          errorType,
+          details,
+          browserInfo: getBrowserInfo(),
+          timestamp: new Date().toISOString(),
+          requestInfo,
+          dataState: getDataState(),
+          ...additionalInfo
+        }
+      };
+    };
+
+    useEffect(() => {
+      fetchWorkouts();
+    }, []);
   
-        setGroupedWorkouts(groupedArray);
+    useEffect(() => {
+      if (allWorkouts.length > 0) {
+        try {
+          const monthStart = startOfMonth(currentDate);
+          const monthEnd = endOfMonth(currentDate);
+          
+          const filteredWorkouts = filterWorkoutsByDateRange(allWorkouts, monthStart, monthEnd);
+          const groupedArray = groupWorkoutsByDate(filteredWorkouts);
+          
+          setWorkouts(filteredWorkouts);
+          setGroupedWorkouts(groupedArray);
+        } catch (e) {
+          console.error('Error in date filtering effect:', e);
+          setError(createError(
+            'Error processing workout dates',
+            e,
+            {
+              failedWorkouts: [
+                { workout: allWorkouts[0], parseError: null },
+                { workout: allWorkouts[allWorkouts.length - 1], parseError: e }
+              ]
+            }
+          ));
+        }
+      }
     }, [currentDate, allWorkouts]);
   
     const fetchWorkouts = async () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await axios.get('http://localhost:5001/api/workouts');
+        
+        const response = await axios.get(`${API_URL}/api/workouts`);
         if (response.data.error) throw new Error(response.data.error);
-        if (!Array.isArray(response.data)) throw new Error('Invalid data format');
-  
-        const sorted: Workout[] = response.data.sort((a, b) => {
-          return parseCustomDate(b.start_time).getTime() - parseCustomDate(a.start_time).getTime();
+        if (!Array.isArray(response.data)) {
+          throw new Error(`Invalid data format received. Expected array, got ${typeof response.data}. Data: ${JSON.stringify(response.data).slice(0, 100)}...`);
+        }
+        
+        // Sort workouts with error handling
+        const sorted = [...response.data].sort((a, b) => {
+          try {
+            return parseCustomDate(b.start_time).getTime() - parseCustomDate(a.start_time).getTime();
+          } catch (e) {
+            const sortError = new Error(`Failed to sort workouts: ${e instanceof Error ? e.message : 'Unknown error'}`);
+            console.error('Error sorting workouts:', sortError);
+            setError(createError(
+              'Error sorting workouts',
+              sortError,
+              {
+                failedWorkouts: [
+                  { workout: a, parseError: null },
+                  { workout: b, parseError: e }
+                ]
+              }
+            ));
+            return 0;
+          }
         });
-  
+        
         setAllWorkouts(sorted);
-        setWorkouts(sorted);
+        
+        const monthStart = startOfMonth(currentDate);
+        const monthEnd = endOfMonth(currentDate);
+        const filteredWorkouts = filterWorkoutsByDateRange(sorted, monthStart, monthEnd);
+        const groupedArray = groupWorkoutsByDate(filteredWorkouts);
+        
+        setWorkouts(filteredWorkouts);
+        setGroupedWorkouts(groupedArray);
       } catch (err) {
         console.error('Error fetching workouts:', err);
-        setError('Failed to fetch workouts. Please try again.');
+        setError(createError('Failed to fetch workouts', err));
         setAllWorkouts([]);
         setWorkouts([]);
         setGroupedWorkouts([]);
@@ -212,7 +396,8 @@ export default function Workouts() {
       const times = items.map(w => parseCustomDate(w.start_time));
       const start = Math.min(...times.map(t => t.getTime()));
       const end = Math.max(...times.map(t => t.getTime()));
-      return differenceInMinutes(end, start);
+      const duration = differenceInMinutes(end, start);
+      return duration > 0 ? duration : null;
     };
 
     const NavButton = ({ to, icon: Icon, label }: { to: string; icon: React.ElementType; label: string }) => (
@@ -261,11 +446,13 @@ export default function Workouts() {
         }}>
           <Navigation onRefresh={fetchWorkouts} loading={loading} />
 
-          <Container maxWidth="lg" sx={{ mt: 4 }}>
+          <Container maxWidth="lg" sx={{ mt: { xs: 2, sm: 4 }, px: { xs: 2, sm: 3 } }}>
             <Typography variant="h4" component="h1" sx={{ 
               color: 'primary.main',
               textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
-              mb: 4,
+              mb: { xs: 2, sm: 4 },
+              fontSize: { xs: '1.75rem', sm: '2.125rem' },
+              textAlign: { xs: 'center', sm: 'left' }
             }}>
               Workout History
             </Typography>
@@ -276,18 +463,143 @@ export default function Workouts() {
               </Box>
             ) : error ? (
               <Paper sx={{ 
-                p: 3, 
-                textAlign: 'center', 
+                p: { xs: 2, sm: 3 }, 
+                mb: 3,
                 bgcolor: 'error.dark',
                 border: '1px solid rgba(211, 47, 47, 0.2)',
+                borderRadius: 2,
               }}>
-                <Typography color="error.light">{error}</Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Typography color="error.light" variant="h6" sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    gap: 1,
+                    fontSize: { xs: '1rem', sm: '1.25rem' }
+                  }}>
+                    {error.message}
+                  </Typography>
+                  
+                  {error.technical && (
+                    <>
+                      <Button
+                        size="small"
+                        sx={{ alignSelf: 'flex-start', mt: 1 }}
+                        onClick={() => setShowTechnicalError(!showTechnicalError)}
+                      >
+                        {showTechnicalError ? 'Hide' : 'Show'} Technical Details
+                      </Button>
+                      
+                      {showTechnicalError && (
+                        <Box sx={{ 
+                          mt: 1,
+                          p: 2,
+                          bgcolor: 'rgba(0, 0, 0, 0.2)',
+                          borderRadius: 1,
+                          fontFamily: 'monospace',
+                          fontSize: '0.875rem',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          color: 'error.light',
+                          opacity: 0.8
+                        }}>
+                          <Typography variant="subtitle2" sx={{ mb: 1 }}>Error Type: {error.technical.errorType}</Typography>
+                          
+                          <Typography variant="subtitle2" sx={{ mb: 1 }}>Details:</Typography>
+                          <Box sx={{ ml: 2, mb: 2 }}>{error.technical.details}</Box>
+
+                          {error.technical.requestInfo && (
+                            <>
+                              <Typography variant="subtitle2" sx={{ mb: 1 }}>Request Information:</Typography>
+                              <Box sx={{ ml: 2, mb: 2 }}>
+                                URL: {error.technical.requestInfo.url}<br />
+                                Method: {error.technical.requestInfo.method}<br />
+                                Status: {error.technical.requestInfo.status || 'N/A'}
+                              </Box>
+                            </>
+                          )}
+
+                          <Typography variant="subtitle2" sx={{ mb: 1 }}>Data State:</Typography>
+                          <Box sx={{ ml: 2, mb: 2 }}>
+                            Total Workouts: {error.technical.dataState?.workoutsCount}<br />
+                            Filtered Workouts: {error.technical.dataState?.filteredCount}<br />
+                            Current Month: {error.technical.dataState?.currentMonth}
+                          </Box>
+
+                          <Typography variant="subtitle2" sx={{ mb: 1 }}>Browser Information:</Typography>
+                          <Box sx={{ ml: 2, mb: 2 }}>
+                            User Agent: {error.technical.browserInfo.userAgent}<br />
+                            Platform: {error.technical.browserInfo.platform}<br />
+                            Vendor: {error.technical.browserInfo.vendor}
+                          </Box>
+
+                          <Typography variant="caption" display="block" sx={{ mt: 2, opacity: 0.7 }}>
+                            Error occurred at: {new Date(error.technical.timestamp).toLocaleString()}
+                          </Typography>
+                        </Box>
+                      )}
+                    </>
+                  )}
+                  
+                  <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      size="small"
+                      onClick={fetchWorkouts}
+                      sx={{ 
+                        bgcolor: 'primary.main',
+                        '&:hover': {
+                          bgcolor: 'primary.dark',
+                        }
+                      }}
+                    >
+                      Try Again
+                    </Button>
+                    
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => {
+                        const errorText = `
+Error Report:
+-------------
+Type: ${error.technical.errorType}
+Time: ${error.technical.timestamp}
+Message: ${error.message}
+Details: ${error.technical.details}
+Browser: ${error.technical.browserInfo.userAgent}
+Platform: ${error.technical.browserInfo.platform}
+Data State:
+- Total Workouts: ${error.technical.dataState?.workoutsCount}
+- Filtered: ${error.technical.dataState?.filteredCount}
+- Month: ${error.technical.dataState?.currentMonth}
+${error.technical.requestInfo ? `
+Request Info:
+- URL: ${error.technical.requestInfo.url}
+- Method: ${error.technical.requestInfo.method}
+- Status: ${error.technical.requestInfo.status}` : ''}
+`;
+                        navigator.clipboard.writeText(errorText);
+                      }}
+                      sx={{ 
+                        borderColor: 'primary.main',
+                        color: 'primary.main',
+                        '&:hover': {
+                          borderColor: 'primary.light',
+                          color: 'primary.light',
+                        }
+                      }}
+                    >
+                      Copy Error Report
+                    </Button>
+                  </Box>
+                </Box>
               </Paper>
             ) : (
-              <Grid container spacing={3}>
+              <Grid container spacing={{ xs: 2, sm: 3 }}>
                 {/* Calendar and Summary */}
                 <Grid item xs={12} md={7}>
-                  <Box sx={{ mb: 4 }}>
+                  <Box sx={{ mb: { xs: 2, sm: 4 } }}>
                     <WorkoutCalendar 
                       workouts={allWorkouts}
                       currentDate={currentDate}
@@ -300,12 +612,13 @@ export default function Workouts() {
                 <Grid item xs={12} md={5}>
                   <Paper
                     sx={{
-                      p: 2,
+                      p: { xs: 2, sm: 3 },
                       borderRadius: 2,
                       boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
                       background: 'linear-gradient(145deg, #1e1e1e 0%, #2d2d2d 100%)',
                       border: '1px solid rgba(144, 202, 249, 0.1)',
                       height: '100%',
+                      minHeight: { xs: 'auto', sm: '300px' }
                     }}
                   >
                     <Typography 
@@ -515,14 +828,19 @@ export default function Workouts() {
                 <Grid item xs={12}>
                   {workouts.length === 0 ? (
                     <Paper sx={{ 
-                      p: 4, 
+                      p: { xs: 2, sm: 4 }, 
                       textAlign: 'center',
                       background: 'linear-gradient(145deg, #1e1e1e 0%, #2d2d2d 100%)',
                     }}>
-                      <Typography color="text.secondary" variant="h6" sx={{ mb: 1 }}>
+                      <Typography color="text.secondary" variant="h6" sx={{ 
+                        mb: 1,
+                        fontSize: { xs: '1.1rem', sm: '1.25rem' }
+                      }}>
                         No workouts found
                       </Typography>
-                      <Typography color="text.secondary">
+                      <Typography color="text.secondary" sx={{
+                        fontSize: { xs: '0.875rem', sm: '1rem' }
+                      }}>
                         {isSameMonth(currentDate, new Date()) 
                           ? "Start tracking your workouts to see them here"
                           : `No workouts found for ${format(currentDate, 'MMMM yyyy')}`
@@ -530,88 +848,118 @@ export default function Workouts() {
                       </Typography>
                     </Paper>
                   ) : (
-                    <Stack spacing={2}>
-                {groupedWorkouts.map(({ date, workout_title, exercise_titles = [], originalItems }) => {
-                  const userWithAt = originalItems.find(item => item.description?.includes('@'))?.description || '';
-                  const username = userWithAt.includes('@') ? userWithAt.match(/@(\S+)/)?.[1] : null;
+                    <Stack spacing={{ xs: 1.5, sm: 2 }}>
+                      {groupedWorkouts.map(({ date, workout_title, exercise_titles = [], originalItems }) => {
+                        const userWithAt = originalItems.find(item => item.description?.includes('@'))?.description || '';
+                        const username = userWithAt.includes('@') ? userWithAt.match(/@(\S+)/)?.[1] : null;
                         const duration = calculateWorkoutDuration(originalItems);
-                  const firstStartTime = originalItems
-                    .map(w => parseCustomDate(w.start_time))
-                    .sort((a, b) => a.getTime() - b.getTime())[0];
-                  const formattedStartTime = firstStartTime ? format(firstStartTime, 'h:mm a') : '';
-  
-                  return (
-                    <Paper
-                      key={date}
-                      sx={{
-                              p: 3,
-                        cursor: 'pointer',
-                        display: 'flex',
+                        const firstStartTime = originalItems
+                          .map(w => parseCustomDate(w.start_time))
+                          .sort((a, b) => a.getTime() - b.getTime())[0];
+                        const formattedStartTime = firstStartTime ? format(firstStartTime, 'h:mm a') : '';
+        
+                        return (
+                          <Paper
+                            key={date}
+                            sx={{
+                              p: { xs: 2, sm: 3 },
+                              cursor: 'pointer',
+                              display: 'flex',
                               flexDirection: { xs: 'column', sm: 'row' },
-                        justifyContent: 'space-between',
+                              justifyContent: 'space-between',
                               alignItems: { xs: 'flex-start', sm: 'center' },
-                              gap: 2,
+                              gap: { xs: 1, sm: 2 },
                               background: 'linear-gradient(145deg, #1e1e1e 0%, #2d2d2d 100%)',
-                      }}
-                      onClick={() => navigate(`/workout/${date}`)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/workout/${date}`); }}
-                    >
-                            <Box sx={{ flex: 1 }}>
+                              transition: 'all 0.2s ease-in-out',
+                              '&:hover': {
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 6px 20px rgba(0, 0, 0, 0.4)',
+                              },
+                              '& .MuiChip-root': {
+                                m: { xs: '4px 0', sm: '0 4px' }
+                              }
+                            }}
+                            onClick={() => navigate(`/workout/${date}`)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/workout/${date}`); }}
+                          >
+                            <Box sx={{ flex: 1, width: '100%' }}>
                               <Typography variant="h6" sx={{ 
-                                mb: 1,
+                                mb: { xs: 0.5, sm: 1 },
                                 color: 'primary.main',
                                 textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
+                                fontSize: { xs: '1.1rem', sm: '1.25rem' }
                               }}>
-                          {workout_title}
-                        </Typography>
-                              <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                                {workout_title}
+                              </Typography>
+                              <Stack 
+                                direction={{ xs: 'column', sm: 'row' }} 
+                                spacing={{ xs: 0.5, sm: 1 }} 
+                                sx={{ 
+                                  mb: { xs: 1, sm: 2 },
+                                  flexWrap: 'wrap',
+                                  gap: { xs: 0.5, sm: 1 }
+                                }}
+                              >
                                 <Chip 
                                   icon={<AccessTimeIcon />}
                                   label={format(parse(date, 'yyyy-MM-dd', new Date()), 'MMMM d, yyyy')}
-                                  size="small"
+                                  size={isMobile ? "small" : "medium"}
+                                  variant="outlined"
+                                  sx={{ maxWidth: { xs: '100%', sm: 'auto' } }}
+                                />
+                                <Chip 
+                                  icon={<FitnessCenterIcon />}
+                                  label={exercise_titles.length > 0 ? `${exercise_titles.length} exercises` : 'No exercises'}
+                                  size={isMobile ? "small" : "medium"}
                                   variant="outlined"
                                 />
                                 {duration && (
                                   <Chip 
                                     icon={<AccessTimeIcon />}
                                     label={`${duration} min`}
-                                    size="small"
+                                    size={isMobile ? "small" : "medium"}
                                     variant="outlined"
                                   />
                                 )}
-                                <Chip 
-                                  icon={<FitnessCenterIcon />}
-                                  label={`${exercise_titles.length} exercises`}
-                                  size="small"
-                                  variant="outlined"
-                                />
                               </Stack>
-                              <Typography variant="body2" color="text.secondary" sx={{ 
-                                mb: 1,
-                                opacity: 0.8,
-                              }}>
+                              <Typography 
+                                variant="body2" 
+                                color="text.secondary" 
+                                sx={{ 
+                                  mb: { xs: 0.5, sm: 1 },
+                                  opacity: 0.8,
+                                  fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                                  lineHeight: 1.4,
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden'
+                                }}
+                              >
                                 {exercise_titles.slice(0, 3).join(' • ')}
                                 {exercise_titles.length > 3 && ` • +${exercise_titles.length - 3} more`}
-                        </Typography>
-                      </Box>
-  
-                      {username && (
+                              </Typography>
+                            </Box>
+        
+                            {username && (
                               <Chip
                                 label={`with ${username}`}
                                 color="secondary"
                                 variant="filled"
+                                size={isMobile ? "small" : "medium"}
                                 sx={{ 
                                   alignSelf: { xs: 'flex-start', sm: 'center' },
                                   background: 'linear-gradient(45deg, #f48fb1 30%, #f06292 90%)',
                                   boxShadow: '0 3px 5px 2px rgba(244, 143, 177, .3)',
+                                  mt: { xs: 1, sm: 0 }
                                 }}
                               />
-                      )}
-                    </Paper>
-                  );
-                })}
+                            )}
+                          </Paper>
+                        );
+                      })}
                     </Stack>
                   )}
                 </Grid>
