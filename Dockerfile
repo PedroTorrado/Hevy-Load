@@ -85,6 +85,14 @@ RUN echo 'server { \
 RUN echo '#!/bin/bash\n\
 mkdir -p /data/db\n\
 mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db\n\
+\n\
+# Wait for MongoDB to be ready\n\
+echo "Waiting for MongoDB to be ready..."\n\
+until mongosh --quiet --eval "db.adminCommand('\''ping'\'')" > /dev/null 2>&1; do\n\
+  sleep 1\n\
+done\n\
+echo "MongoDB is up!"\n\
+\n\
 service nginx start\n\
 python backend/app.py &\n\
 wait' > /app/start.sh && chmod +x /app/start.sh
