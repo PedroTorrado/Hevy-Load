@@ -39,6 +39,7 @@ import axios from 'axios';
 import WorkoutDetails from './components/WorkoutDetails';
 import LandingPage from './components/LandingPage';
 import Dashboard from './components/Dashboard';
+import Workouts from './components/Workouts';
 
 // Register ChartJS components
 ChartJS.register(
@@ -183,7 +184,7 @@ function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkout
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get('http://localhost:5000/api/exercises');
+      const response = await axios.get('http://localhost:5001/api/exercises');
       const exercisesList = response.data;
       setExercises(exercisesList);
       // If the saved exercise exists in the list, use it, otherwise use Bench Press
@@ -205,7 +206,7 @@ function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkout
       setLoading(true);
       setError(null);
       console.log('Fetching workouts for exercise:', selectedExercise);
-      const response = await axios.get('http://localhost:5000/api/workouts');
+      const response = await axios.get('http://localhost:5001/api/workouts');
       
       // Debug logging for squat data
       if (selectedExercise.toLowerCase().includes('squat')) {
@@ -242,7 +243,7 @@ function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkout
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.post('http://localhost:5000/api/upload', formData);
+      const response = await axios.post('http://localhost:5001/api/upload', formData);
       if (response.data.error) {
         throw new Error(response.data.error);
       }
@@ -819,7 +820,7 @@ function App() {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get('http://localhost:5000/api/workouts');
+      const response = await axios.get('http://localhost:5001/api/workouts');
       if (response.data.error) {
         throw new Error(response.data.error);
       }
@@ -846,6 +847,7 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/dashboard" element={<Dashboard workouts={workouts} setWorkouts={setWorkouts} />} />
         <Route path="/workout/:date" element={<WorkoutDetails workouts={workouts} />} />
+        <Route path="/workouts" element={<Workouts />} />
       </Routes>
     </Router>
   );

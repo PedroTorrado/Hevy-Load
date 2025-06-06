@@ -13,6 +13,7 @@ import {
   IconButton
 } from '@mui/material';
 import { format, addDays, subDays } from 'date-fns';
+import Navigation from './Navigation';
 
 interface Workout {
   start_time: string;
@@ -128,191 +129,185 @@ function WorkoutDetails({ workouts }: WorkoutDetailsProps) {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Container maxWidth="lg">
-        <Box sx={{ my: 4 }}>
-          <Typography variant="h4" component="h1" gutterBottom sx={{ 
-            textAlign: 'center',
-            mb: 4,
-            color: 'primary.main',
-            textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
-          }}>
-            Workout Details
-          </Typography>
+      <Box sx={{ 
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #121212 0%, #1a2027 100%)',
+        pb: 4,
+      }}>
+        <Navigation />
 
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            mb: 4 
-          }}>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={() => navigate('/')}
-              sx={{
-                background: 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
-                boxShadow: '0 3px 5px 2px rgba(144, 202, 249, .3)',
-                '&:hover': {
-                  background: 'linear-gradient(45deg, #64b5f6 30%, #42a5f5 90%)',
-                },
-              }}
-            >
-              Back to Dashboard
-            </Button>
+        <Container maxWidth="lg">
+          <Box sx={{ my: 4 }}>
+            <Typography variant="h4" component="h1" gutterBottom sx={{ 
+              textAlign: 'center',
+              mb: 4,
+              color: 'primary.main',
+              textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
+            }}>
+              Workout Details
+            </Typography>
 
             <Box sx={{ 
               display: 'flex', 
-              gap: 2, 
+              justifyContent: 'space-between', 
               alignItems: 'center',
-              background: 'linear-gradient(145deg, rgba(144, 202, 249, 0.1) 0%, rgba(144, 202, 249, 0.05) 100%)',
-              padding: '8px 16px',
-              borderRadius: '12px',
-              border: '1px solid rgba(144, 202, 249, 0.2)',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
+              mb: 4 
             }}>
-              <Button
-                onClick={() => prevDate && navigate(`/workout/${prevDate}`)}
-                disabled={!prevDate}
-                sx={{
-                  minWidth: '40px',
-                  height: '40px',
-                  color: 'primary.main',
-                  fontSize: '1.5rem',
-                  fontWeight: 'bold',
-                  borderRadius: '10px',
-                  transition: 'all 0.2s ease-in-out',
-                  '&:hover': {
-                    backgroundColor: 'rgba(144, 202, 249, 0.2)',
-                    transform: 'translateX(-2px)',
-                  },
-                  '&.Mui-disabled': {
-                    color: 'rgba(255, 255, 255, 0.2)',
-                  },
-                }}
-              >
-                ←
-              </Button>
-              <Typography 
-                variant="h5" 
-                sx={{ 
-                  color: 'primary.main',
-                  fontWeight: 600,
-                  textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
-                  minWidth: '200px',
-                  textAlign: 'center',
-                }}
-              >
-                {format(new Date(date!), 'MMMM d, yyyy')}
-              </Typography>
-              <Button
-                onClick={() => nextDate && navigate(`/workout/${nextDate}`)}
-                disabled={!nextDate}
-                sx={{
-                  minWidth: '40px',
-                  height: '40px',
-                  color: 'primary.main',
-                  fontSize: '1.5rem',
-                  fontWeight: 'bold',
-                  borderRadius: '10px',
-                  transition: 'all 0.2s ease-in-out',
-                  '&:hover': {
-                    backgroundColor: 'rgba(144, 202, 249, 0.2)',
-                    transform: 'translateX(2px)',
-                  },
-                  '&.Mui-disabled': {
-                    color: 'rgba(255, 255, 255, 0.2)',
-                  },
-                }}
-              >
-                →
-              </Button>
-            </Box>
-          </Box>
-
-          {workoutStartTime && (
-            <Typography variant="subtitle1" sx={{ mb: 3, color: 'text.secondary' }}>
-              Workout started at {workoutStartTime}
-            </Typography>
-          )}
-
-          {Object.entries(groupedWorkouts).map(([exercise, sets]) => (
-            <Paper
-              key={exercise}
-              sx={{
-                p: 3,
-                mb: 3,
-                borderRadius: 2,
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-                background: 'linear-gradient(145deg, #1e1e1e 0%, #2d2d2d 100%)',
-              }}
-            >
-              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
-                {exercise}
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                {sets.map((set, index) => (
-                  <React.Fragment key={`${set.start_time}-${index}`}>
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        p: 1.5,
-                        borderRadius: 1,
-                        backgroundColor: 'rgba(144, 202, 249, 0.1)',
-                      }}
-                    >
-                      <Typography sx={{ 
-                        fontWeight: 'bold',
-                        color: 'primary.main',
-                        minWidth: '60px',
-                        mr: 2
-                      }}>
-                        Set {index + 1}
-                      </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        {set.weight_kg > 0 && (
-                          <Typography sx={{ fontWeight: 'medium' }}>
-                            {set.weight_kg} kg
-                          </Typography>
-                        )}
-                        {set.reps > 0 && (
-                          <Typography sx={{ fontWeight: 'medium' }}>
-                            × {set.reps} reps
-                          </Typography>
-                        )}
-                        {set.distance_km && (
-                          <Typography sx={{ color: 'text.secondary', ml: 2 }}>
-                            {set.distance_km} km
-                          </Typography>
-                        )}
-                        {set.duration_seconds && (
-                          <Typography sx={{ color: 'text.secondary', ml: 2 }}>
-                            {Math.floor(set.duration_seconds / 60)}:{(set.duration_seconds % 60).toString().padStart(2, '0')}
-                          </Typography>
-                        )}
-                        {set.rpe && (
-                          <Typography sx={{ color: 'text.secondary', ml: 2 }}>
-                            RPE: {set.rpe}
-                          </Typography>
-                        )}
-                      </Box>
-                    </Box>
-                    {index < sets.length - 1 && (
-                      <Divider sx={{ my: 0.5, borderColor: 'rgba(255, 255, 255, 0.1)' }} />
-                    )}
-                  </React.Fragment>
-                ))}
+              <Box sx={{ 
+                display: 'flex', 
+                gap: 2, 
+                alignItems: 'center',
+                background: 'linear-gradient(145deg, rgba(144, 202, 249, 0.1) 0%, rgba(144, 202, 249, 0.05) 100%)',
+                padding: '8px 16px',
+                borderRadius: '12px',
+                border: '1px solid rgba(144, 202, 249, 0.2)',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
+              }}>
+                <Button
+                  onClick={() => prevDate && navigate(`/workout/${prevDate}`)}
+                  disabled={!prevDate}
+                  sx={{
+                    minWidth: '40px',
+                    height: '40px',
+                    color: 'primary.main',
+                    fontSize: '1.5rem',
+                    fontWeight: 'bold',
+                    borderRadius: '10px',
+                    transition: 'all 0.2s ease-in-out',
+                    '&:hover': {
+                      backgroundColor: 'rgba(144, 202, 249, 0.2)',
+                      transform: 'translateX(-2px)',
+                    },
+                    '&.Mui-disabled': {
+                      color: 'rgba(255, 255, 255, 0.2)',
+                    },
+                  }}
+                >
+                  ←
+                </Button>
+                <Typography 
+                  variant="h5" 
+                  sx={{ 
+                    color: 'primary.main',
+                    fontWeight: 600,
+                    textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
+                    minWidth: '200px',
+                    textAlign: 'center',
+                    display: 'block',
+                  }}
+                >
+                  {format(new Date(date!), 'MMMM d, yyyy')}
+                </Typography>
+                <Button
+                  onClick={() => nextDate && navigate(`/workout/${nextDate}`)}
+                  disabled={!nextDate}
+                  sx={{
+                    minWidth: '40px',
+                    height: '40px',
+                    color: 'primary.main',
+                    fontSize: '1.5rem',
+                    fontWeight: 'bold',
+                    borderRadius: '10px',
+                    transition: 'all 0.2s ease-in-out',
+                    '&:hover': {
+                      backgroundColor: 'rgba(144, 202, 249, 0.2)',
+                      transform: 'translateX(2px)',
+                    },
+                    '&.Mui-disabled': {
+                      color: 'rgba(255, 255, 255, 0.2)',
+                    },
+                  }}
+                >
+                  →
+                </Button>
               </Box>
-            </Paper>
-          ))}
+            </Box>
 
-          {dateWorkouts.length === 0 && (
-            <Typography color="text.secondary" sx={{ textAlign: 'center' }}>
-              No workouts found for this date.
-            </Typography>
-          )}
-        </Box>
-      </Container>
+            {workoutStartTime && (
+              <Typography variant="subtitle1" sx={{ mb: 3, color: 'text.secondary' }}>
+                Workout started at {workoutStartTime}
+              </Typography>
+            )}
+
+            {Object.entries(groupedWorkouts).map(([exercise, sets]) => (
+              <Paper
+                key={exercise}
+                sx={{
+                  p: 3,
+                  mb: 3,
+                  borderRadius: 2,
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+                  background: 'linear-gradient(145deg, #1e1e1e 0%, #2d2d2d 100%)',
+                }}
+              >
+                <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+                  {exercise}
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  {sets.map((set, index) => (
+                    <React.Fragment key={`${set.start_time}-${index}`}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          p: 1.5,
+                          borderRadius: 1,
+                          backgroundColor: 'rgba(144, 202, 249, 0.1)',
+                        }}
+                      >
+                        <Typography sx={{ 
+                          fontWeight: 'bold',
+                          color: 'primary.main',
+                          minWidth: '60px',
+                          mr: 2
+                        }}>
+                          Set {index + 1}
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          {set.weight_kg > 0 && (
+                            <Typography sx={{ fontWeight: 'medium' }}>
+                              {set.weight_kg} kg
+                            </Typography>
+                          )}
+                          {set.reps > 0 && (
+                            <Typography sx={{ fontWeight: 'medium' }}>
+                              × {set.reps} reps
+                            </Typography>
+                          )}
+                          {set.distance_km && (
+                            <Typography sx={{ color: 'text.secondary', ml: 2 }}>
+                              {set.distance_km} km
+                            </Typography>
+                          )}
+                          {set.duration_seconds && (
+                            <Typography sx={{ color: 'text.secondary', ml: 2 }}>
+                              {Math.floor(set.duration_seconds / 60)}:{(set.duration_seconds % 60).toString().padStart(2, '0')}
+                            </Typography>
+                          )}
+                          {set.rpe && (
+                            <Typography sx={{ color: 'text.secondary', ml: 2 }}>
+                              RPE: {set.rpe}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+                      {index < sets.length - 1 && (
+                        <Divider sx={{ my: 0.5, borderColor: 'rgba(255, 255, 255, 0.1)' }} />
+                      )}
+                    </React.Fragment>
+                  ))}
+                </Box>
+              </Paper>
+            ))}
+
+            {dateWorkouts.length === 0 && (
+              <Typography color="text.secondary" sx={{ textAlign: 'center' }}>
+                No workouts found for this date.
+              </Typography>
+            )}
+          </Box>
+        </Container>
+      </Box>
     </ThemeProvider>
   );
 }

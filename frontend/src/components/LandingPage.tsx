@@ -15,12 +15,13 @@ import {
   Snackbar
 } from '@mui/material';
 import axios from 'axios';
+import Navigation from './Navigation';
 
 // API URL configuration - automatically detect server address
 const getApiUrl = () => {
   const hostname = window.location.hostname;
   const protocol = window.location.protocol;
-  const port = '5000';
+  const port = '5001';
   
   // Log connection details for debugging
   console.log('Current hostname:', hostname);
@@ -74,11 +75,30 @@ interface Workout {
   reps: number;
 }
 
+// Add keyframes definition at the top level
+const pulseKeyframes = {
+  '@keyframes pulse': {
+    '0%': {
+      transform: 'scale(1)',
+      boxShadow: '0 3px 5px 2px rgba(76, 175, 80, .3)',
+    },
+    '50%': {
+      transform: 'scale(1.05)',
+      boxShadow: '0 5px 15px 2px rgba(76, 175, 80, .5)',
+    },
+    '100%': {
+      transform: 'scale(1)',
+      boxShadow: '0 3px 5px 2px rgba(76, 175, 80, .3)',
+    },
+  },
+};
+
 function LandingPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
   const [prs, setPrs] = useState<{
     bench: { weight: number; reps: number; date: string; firstAchieved: string } | null;
     squat: { weight: number; reps: number; date: string; firstAchieved: string } | null;
@@ -398,6 +418,7 @@ function LandingPage() {
     try {
       setUploadLoading(true);
       setError(null);
+      setUploadSuccess(false);
       
       console.log('Attempting to upload file to:', `${API_URL}/api/upload`);
       // Add timeout to the request
@@ -415,8 +436,14 @@ function LandingPage() {
       // Clear the file input
       event.target.value = '';
       
+      // Wait for PRs to be fetched
       await fetchPRs();
-      navigate('/dashboard');
+      
+      // Add a small delay to ensure data is properly processed
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Show success message instead of navigating
+      setUploadSuccess(true);
     } catch (error) {
       console.error('Error uploading file:', error);
       if (axios.isAxiosError(error)) {
@@ -446,156 +473,195 @@ function LandingPage() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Container maxWidth="lg">
-        <Box sx={{ 
-          my: 4,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '80vh',
-          textAlign: 'center'
-        }}>
-          <Typography variant="h2" component="h1" gutterBottom sx={{ 
-            color: 'primary.main',
-            textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
-            mb: 4
-          }}>
-            Hevy - Load
-          </Typography>
-          
-          <Typography variant="h5" sx={{ mb: 6, color: 'text.secondary' }}>
-            Track and visualize your workout progress
-          </Typography>
+      <Box sx={{ 
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #121212 0%, #1a2027 100%)',
+        pb: 4,
+      }}>
+        <Navigation />
 
-          {/* PRs Section */}
-          <Box sx={{ width: '100%', maxWidth: '1000px', mb: 6 }}>
-            <Typography 
-              variant="h4" 
-              sx={{ 
-                mb: 4, 
-                color: 'primary.main',
-                textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
-                fontWeight: 600,
-              }}
-            >
-              Personal Records
+        <Container maxWidth="lg">
+          <Box sx={{ 
+            my: 4,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '80vh',
+            textAlign: 'center'
+          }}>
+            <Typography variant="h2" component="h1" gutterBottom sx={{ 
+              color: 'primary.main',
+              textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
+              mb: 4
+            }}>
+              Hevy - Load
             </Typography>
             
-            {loading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-                <CircularProgress sx={{ color: 'primary.main' }} />
-              </Box>
-            ) : (
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={4}>
-                  <PRCard 
-                    title="Bench Press" 
-                    pr={prs.bench} 
-                    color="#90caf9"
-                  />
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <PRCard 
-                    title="Squat" 
-                    pr={prs.squat} 
-                    color="#f48fb1"
-                  />
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <PRCard 
-                    title="Deadlift" 
-                    pr={prs.deadlift} 
-                    color="#66bb6a"
-                  />
-                </Grid>
-              </Grid>
-            )}
-          </Box>
+            <Typography variant="h5" sx={{ mb: 6, color: 'text.secondary' }}>
+              Track and visualize your workout progress
+            </Typography>
 
-          <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <input
-              accept=".csv"
-              style={{ display: 'none' }}
-              id="upload-button-file"
-              type="file"
-              onChange={handleFileUpload}
-              capture="environment"
-            />
-            <label htmlFor="upload-button-file">
+            {/* PRs Section */}
+            <Box sx={{ width: '100%', maxWidth: '1000px', mb: 6 }}>
+              <Typography 
+                variant="h4" 
+                sx={{ 
+                  mb: 4, 
+                  color: 'primary.main',
+                  textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
+                  fontWeight: 600,
+                }}
+              >
+                Personal Records
+              </Typography>
+              
+              {loading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                  <CircularProgress sx={{ color: 'primary.main' }} />
+                </Box>
+              ) : (
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={4}>
+                    <PRCard 
+                      title="Bench Press" 
+                      pr={prs.bench} 
+                      color="#90caf9"
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <PRCard 
+                      title="Squat" 
+                      pr={prs.squat} 
+                      color="#f48fb1"
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <PRCard 
+                      title="Deadlift" 
+                      pr={prs.deadlift} 
+                      color="#66bb6a"
+                    />
+                  </Grid>
+                </Grid>
+              )}
+            </Box>
+
+            <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <input
+                accept=".csv"
+                style={{ display: 'none' }}
+                id="upload-button-file"
+                type="file"
+                onChange={handleFileUpload}
+                capture="environment"
+              />
+
               <Button
-                variant="contained"
+                variant="outlined"
                 size="large"
-                component="span"
-                disabled={uploadLoading}
+                onClick={() => window.open('https://hevy.com/settings?export', '_blank')}
                 sx={{
-                  py: 2,
-                  px: 4,
-                  fontSize: '1.2rem',
-                  minWidth: '200px',
-                  background: 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
-                  boxShadow: '0 3px 5px 2px rgba(144, 202, 249, .3)',
+                  width: '300px',
+                  height: '60px',
+                  borderColor: 'primary.main',
+                  color: 'primary.main',
                   '&:hover': {
-                    background: 'linear-gradient(45deg, #64b5f6 30%, #42a5f5 90%)',
+                    borderColor: 'primary.light',
+                    backgroundColor: 'rgba(144, 202, 249, 0.1)',
                   },
                 }}
               >
-                {uploadLoading ? 'Uploading...' : 'Import Workout Data'}
+                Export from Hevy
               </Button>
-            </label>
 
-            <Button
-              variant="outlined"
-              size="large"
-              onClick={() => window.open('https://hevy.com/settings?export', '_blank')}
-              sx={{
-                py: 2,
-                px: 4,
-                fontSize: '1.2rem',
-                minWidth: '200px',
-                borderColor: 'primary.main',
-                color: 'primary.main',
-                '&:hover': {
-                  borderColor: 'primary.light',
-                  backgroundColor: 'rgba(144, 202, 249, 0.1)',
-                },
-              }}
-            >
-              Export from Hevy
-            </Button>
+              <label htmlFor="upload-button-file">
+                <Button
+                  variant="contained"
+                  size="large"
+                  component="span"
+                  disabled={uploadLoading}
+                  sx={{
+                    width: '300px',
+                    height: '60px',
+                    background: 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
+                    boxShadow: '0 3px 5px 2px rgba(144, 202, 249, .3)',
+                    '&:hover': {
+                      background: 'linear-gradient(45deg, #64b5f6 30%, #42a5f5 90%)',
+                    },
+                  }}
+                >
+                  {uploadLoading ? 'Uploading...' : 'Import Workout Data'}
+                </Button>
+              </label>
 
-            <Button
-              variant="contained"
-              size="large"
-              onClick={() => navigate('/dashboard')}
-              sx={{
-                py: 2,
-                px: 4,
-                fontSize: '1.2rem',
-                minWidth: '200px',
-                background: 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
-                boxShadow: '0 3px 5px 2px rgba(144, 202, 249, .3)',
-                '&:hover': {
-                  background: 'linear-gradient(45deg, #64b5f6 30%, #42a5f5 90%)',
-                },
-              }}
+              <Button
+                variant="contained"
+                size="large"
+                onClick={() => navigate('/dashboard')}
+                sx={{
+                  width: '300px',
+                  height: '60px',
+                  background: uploadSuccess 
+                    ? 'linear-gradient(45deg, #4caf50 30%, #45a049 90%)'
+                    : 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
+                  boxShadow: uploadSuccess
+                    ? '0 3px 5px 2px rgba(76, 175, 80, .3)'
+                    : '0 3px 5px 2px rgba(144, 202, 249, .3)',
+                  animation: uploadSuccess ? 'pulse 2s infinite' : 'none',
+                  ...pulseKeyframes,
+                  '&:hover': {
+                    background: uploadSuccess
+                      ? 'linear-gradient(45deg, #45a049 30%, #3d8b40 90%)'
+                      : 'linear-gradient(45deg, #64b5f6 30%, #42a5f5 90%)',
+                  },
+                }}
+              >
+                {uploadSuccess ? 'View Your Data →' : 'Go to Dashboard'}
+              </Button>
+            </Box>
+
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                gap: 3, 
+                flexWrap: 'wrap', 
+                justifyContent: 'center',
+                mt: 4
+              }}>
+                <Button
+                  variant="contained"
+                  size="large"
+                  onClick={() => navigate('/workouts')}
+                >
+                  View Workouts
+                </Button>
+            </Box>
+
+            <Snackbar 
+              open={!!error} 
+              autoHideDuration={6000} 
+              onClose={() => setError(null)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
             >
-              Go to Dashboard
-            </Button>
+              <Alert onClose={() => setError(null)} severity="error" sx={{ width: '100%' }}>
+                {error}
+              </Alert>
+            </Snackbar>
+
+            <Snackbar 
+              open={uploadSuccess} 
+              autoHideDuration={6000} 
+              onClose={() => setUploadSuccess(false)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+              <Alert onClose={() => setUploadSuccess(false)} severity="success" sx={{ width: '100%' }}>
+                Data uploaded successfully! Click the dashboard button to view your progress.
+              </Alert>
+            </Snackbar>
           </Box>
-
-          <Snackbar 
-            open={!!error} 
-            autoHideDuration={6000} 
-            onClose={() => setError(null)}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-          >
-            <Alert onClose={() => setError(null)} severity="error" sx={{ width: '100%' }}>
-              {error}
-            </Alert>
-          </Snackbar>
-        </Box>
-      </Container>
+        </Container>
+      </Box>
     </ThemeProvider>
   );
 }

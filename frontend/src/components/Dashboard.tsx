@@ -31,18 +31,20 @@ import {
   ChartOptions,
   Filler,
   TimeScale,
-  ChartData
+  ChartData,
+  TimeUnit,
+  Tick
 } from 'chart.js';
 import 'chartjs-adapter-date-fns';
 import { format } from 'date-fns';
 import axios from 'axios';
-import WorkoutDetails from './WorkoutDetails';
+import Navigation from './Navigation';
 
 // API URL configuration - automatically detect server address
 const getApiUrl = () => {
   const hostname = window.location.hostname;
   const protocol = window.location.protocol;
-  const port = '5000';
+  const port = '5001';
   // If running locally, use localhost, otherwise use the current hostname
   const apiUrl = `${protocol}//${hostname === 'localhost' || hostname === '127.0.0.1' ? 'localhost' : hostname}:${port}`;
   return apiUrl;
@@ -106,6 +108,26 @@ interface Workout {
   rpe?: number;
 }
 
+// Move getAxisLabel above getChartData
+const getAxisLabel = (axis: string) => {
+  switch (axis) {
+    case 'start_time':
+      return 'Date';
+    case 'weight_kg':
+      return 'Weight (kg)';
+    case 'reps':
+      return 'Reps';
+    case 'distance_km':
+      return 'Distance (km)';
+    case 'duration_seconds':
+      return 'Duration (seconds)';
+    case 'rpe':
+      return 'RPE';
+    default:
+      return axis;
+  }
+};
+
 function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts: React.Dispatch<React.SetStateAction<Workout[]>> }) {
   const navigate = useNavigate();
   const isMobile = window.matchMedia('(max-width:600px)').matches;
@@ -123,9 +145,13 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
   const [error, setError] = useState<string | null>(null);
   const [workoutData, setWorkoutData] = useState<Workout[]>([]);
 
+  // Helper for formatting date labels
+  const formatDateLabel = (dateStr: string) => format(new Date(dateStr), 'MMM d, yyyy');
+
   useEffect(() => {
     fetchExercises();
-  }, []);
+    fetchWorkouts();
+  }, [selectedExercise]);
 
   useEffect(() => {
     // Filter workouts for the selected exercise
@@ -275,100 +301,82 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
     if (!workoutData.length) {
       return {
         datasets: [{
-          label: `${yAxis} vs ${xAxis}`,
+          label: `${getAxisLabel(yAxis)} vs ${getAxisLabel(xAxis)}`,
           data: [],
           borderColor: '#1976d2',
-          backgroundColor: 'rgba(25, 118, 210, 0.2)',
+          backgroundColor: 'rgba(25, 118, 210, 0.2)'
         }]
       };
     }
 
-    let filteredWorkouts = [...workoutData];
-    if (showTopSets) {
-      const topSets = new Map<string, Workout>();
+    let filteredWorkouts = workoutData.filter(w => {
+      const hasValidWeight = typeof w.weight_kg === 'number' && !isNaN(w.weight_kg) && w.weight_kg > 0;
+      const hasValidReps = typeof w.reps === 'number' && !isNaN(w.reps) && w.reps > 0;
+      return hasValidWeight && hasValidReps;
+    });
+
+    if (showTopSets && xAxis === 'start_time') {
+      const workoutsByDate = new Map<string, Workout>();
       filteredWorkouts.forEach(workout => {
-        const key = `${workout.start_time}-${workout.exercise_title}`;
-        if (!topSets.has(key) || workout.weight_kg > topSets.get(key)!.weight_kg) {
-          topSets.set(key, workout);
+        const date = format(new Date(workout.start_time), 'yyyy-MM-dd');
+        const existingWorkout = workoutsByDate.get(date);
+        if (yAxis === 'weight_kg') {
+          if (!existingWorkout || workout.weight_kg > existingWorkout.weight_kg) {
+            workoutsByDate.set(date, workout);
+          }
+        } else if (yAxis === 'reps') {
+          if (!existingWorkout || workout.reps > existingWorkout.reps) {
+            workoutsByDate.set(date, workout);
+          }
+        } else {
+          const currentValue = workout[yAxis as keyof Workout] as number;
+          const existingValue = existingWorkout?.[yAxis as keyof Workout] as number;
+          if (!existingWorkout || currentValue > existingValue) {
+            workoutsByDate.set(date, workout);
+          }
         }
       });
-      filteredWorkouts = Array.from(topSets.values());
+      filteredWorkouts = Array.from(workoutsByDate.values());
     }
 
-    // Sort workouts by date
-    filteredWorkouts.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+    // Sort for display
+    if (xAxis === 'start_time') {
+      filteredWorkouts.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+    } else if (xAxis === 'reps' && yAxis === 'weight_kg') {
+      filteredWorkouts.sort((a, b) => a.reps - b.reps);
+    }
 
-    // If even date spacing is enabled and x-axis is start_time
-    if (evenDateSpacing && xAxis === 'start_time') {
-      const dates = filteredWorkouts.map(w => new Date(w.start_time));
-      const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
-      const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
-      
-      // Create evenly spaced dates
-      const numPoints = filteredWorkouts.length;
-      const timeStep = (maxDate.getTime() - minDate.getTime()) / (numPoints - 1);
-      
-      // Create new array with evenly spaced dates
-      const data = filteredWorkouts.map((workout, index) => ({
-        x: new Date(minDate.getTime() + timeStep * index),
-        y: Number(workout[yAxis as keyof Workout]) || 0,
-        originalDate: workout.start_time
+    // Data for chart
+    let data;
+    if (xAxis === 'start_time' && evenDateSpacing) {
+      // Ordinal/categorical: x is formatted date string
+      data = filteredWorkouts.map(w => ({
+        x: formatDateLabel(w.start_time),
+        y: Number(w[yAxis as keyof Workout]),
+        originalDate: w.start_time,
       }));
-
-      return {
-        datasets: [{
-          label: `${yAxis} vs ${xAxis}`,
-          data,
-          borderColor: '#1976d2',
-          backgroundColor: 'rgba(25, 118, 210, 0.2)',
-        }]
-      };
+    } else {
+      // Time scale: x is Date object
+      data = filteredWorkouts.map(w => ({
+        x: xAxis === 'start_time' ? new Date(w.start_time) : Number(w[xAxis as keyof Workout]),
+        y: Number(w[yAxis as keyof Workout]),
+        originalDate: w.start_time,
+      }));
     }
-
-    // For non-even date spacing or non-time x-axis
-    const data = filteredWorkouts.map(w => {
-      const xValue = w[xAxis as keyof Workout];
-      const yValue = w[yAxis as keyof Workout];
-      
-      return {
-        x: xAxis === 'start_time' ? new Date(xValue as string) : Number(xValue) || 0,
-        y: Number(yValue) || 0,
-        originalDate: w.start_time
-      };
-    });
 
     return {
       datasets: [{
-        label: `${yAxis} vs ${xAxis}`,
+        label: `${getAxisLabel(yAxis)} vs ${getAxisLabel(xAxis)}`,
         data,
         borderColor: '#1976d2',
-        backgroundColor: 'rgba(25, 118, 210, 0.2)',
+        backgroundColor: 'rgba(25, 118, 210, 0.2)'
       }]
     };
-  }, [workoutData, showTopSets, xAxis, yAxis, evenDateSpacing]);
+  }, [workoutData, xAxis, yAxis, selectedExercise, showTopSets, evenDateSpacing]);
 
   const getLineChartData = () => getChartData as ChartData<'line', { x: Date | number; y: number }[]>;
   const getBarChartData = () => getChartData as ChartData<'bar', { x: Date | number; y: number }[]>;
   const getScatterChartData = () => getChartData as ChartData<'scatter', { x: Date | number; y: number }[]>;
-
-  const getAxisLabel = (axis: string) => {
-    switch (axis) {
-      case 'start_time':
-        return 'Date';
-      case 'weight_kg':
-        return 'Weight (kg)';
-      case 'reps':
-        return 'Reps';
-      case 'distance_km':
-        return 'Distance (km)';
-      case 'duration_seconds':
-        return 'Duration (seconds)';
-      case 'rpe':
-        return 'RPE';
-      default:
-        return axis;
-    }
-  };
 
   const chartOptions: ChartOptions<'line' | 'bar' | 'scatter'> = {
     responsive: true,
@@ -385,7 +393,6 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
         bodyFont: { size: isMobile ? 10 : 14 },
         callbacks: {
           title: function(context: any) {
-            // Always show the actual workout date in the tooltip
             const date = new Date(context[0].raw.originalDate);
             return format(date, 'MMM d, yyyy');
           },
@@ -408,25 +415,52 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
       }
     },
     scales: {
-      x: xAxis === 'start_time' ? {
-        type: 'time' as const,
+      x: xAxis === 'start_time' && evenDateSpacing ? {
+        type: 'category',
+        title: {
+          display: true,
+          text: getAxisLabel(xAxis)
+        },
+        ticks: {
+          autoSkip: true,
+          maxTicksLimit: 10,
+          maxRotation: 45,
+          minRotation: 45,
+          font: { size: isMobile ? 10 : 14 },
+        },
+        grid: {
+          display: true,
+          color: 'rgba(255, 255, 255, 0.1)'
+        }
+      } : xAxis === 'start_time' ? {
+        type: 'time',
         time: {
           unit: 'day',
           displayFormats: {
-            day: 'MMM d, yyyy'
+            day: 'MMM d',
+            month: 'MMM yyyy',
+            year: 'yyyy',
           },
-          tooltipFormat: 'MMM d, yyyy'
+          tooltipFormat: 'MMM d, yyyy',
         },
         title: {
           display: true,
           text: getAxisLabel(xAxis)
         },
         ticks: {
-          source: 'auto',
           autoSkip: true,
-          maxRotation: isMobile ? 0 : 45,
-          minRotation: isMobile ? 0 : 45,
-          font: { size: isMobile ? 10 : 14 }
+          maxTicksLimit: 10,
+          maxRotation: 45,
+          minRotation: 45,
+          font: { size: isMobile ? 10 : 14 },
+          callback: function(value, index, values) {
+            const date = new Date(value as number);
+            return format(date, 'MMM d');
+          }
+        },
+        grid: {
+          display: true,
+          color: 'rgba(255, 255, 255, 0.1)'
         }
       } : {
         type: 'linear' as const,
@@ -434,7 +468,12 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
           display: true,
           text: getAxisLabel(xAxis)
         },
-        ticks: { font: { size: isMobile ? 10 : 14 } }
+        ticks: { 
+          font: { size: isMobile ? 10 : 14 },
+          callback: function(value) {
+            return Number.isInteger(value) ? value : '';
+          }
+        }
       },
       y: {
         type: 'linear' as const,
@@ -442,7 +481,13 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
           display: true,
           text: getAxisLabel(yAxis)
         },
-        ticks: { font: { size: isMobile ? 10 : 14 } }
+        ticks: { 
+          font: { size: isMobile ? 10 : 14 },
+          // For weight axis, ensure we show integer values
+          callback: function(value) {
+            return Number.isInteger(value) ? value : '';
+          }
+        }
       }
     },
     maintainAspectRatio: false,
@@ -496,9 +541,15 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Container maxWidth="lg">
-        <Box sx={{ my: 4 }}>
-          <Typography variant="h4" component="h1" gutterBottom sx={{ 
+      <Box sx={{ 
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #121212 0%, #1a2027 100%)',
+        pb: 4,
+      }}>
+        <Navigation onRefresh={fetchWorkouts} loading={loading} />
+        
+        <Container maxWidth="lg" sx={{ mt: 4 }}>
+          <Typography variant="h4" component="h1" sx={{ 
             textAlign: 'center',
             mb: 4,
             color: 'primary.main',
@@ -509,33 +560,6 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
           }}>
             Hevy - Load
           </Typography>
-
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            mb: 4,
-            gap: 2
-          }}>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={() => window.open('https://hevy.com/settings?export', '_blank')}
-              sx={{
-                background: 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
-                boxShadow: '0 3px 5px 2px rgba(144, 202, 249, .3)',
-                padding: '10px 24px',
-                fontSize: '1.1rem',
-                '&:hover': {
-                  background: 'linear-gradient(45deg, #64b5f6 30%, #42a5f5 90%)',
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 5px 15px rgba(144, 202, 249, .4)',
-                },
-                transition: 'all 0.2s ease-in-out',
-              }}
-            >
-              Export from Hevy
-            </Button>
-          </Box>
 
           {error && (
             <Typography color="error" sx={{ 
@@ -760,9 +784,27 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
                 </Box>
               ) : (
                 <>
-                  {chartType === 'line' && <Line data={getLineChartData()} options={chartOptions} />}
-                  {chartType === 'bar' && <Bar data={getBarChartData()} options={chartOptions} />}
-                  {chartType === 'scatter' && <Scatter data={getScatterChartData()} options={chartOptions} />}
+                  {chartType === 'line' && (
+                    <Line 
+                      key={`${xAxis}-${evenDateSpacing ? 'even' : 'time'}`}
+                      data={getLineChartData()} 
+                      options={chartOptions} 
+                    />
+                  )}
+                  {chartType === 'bar' && (
+                    <Bar 
+                      key={`${xAxis}-${evenDateSpacing ? 'even' : 'time'}`}
+                      data={getBarChartData()} 
+                      options={chartOptions} 
+                    />
+                  )}
+                  {chartType === 'scatter' && (
+                    <Scatter 
+                      key={`${xAxis}-${evenDateSpacing ? 'even' : 'time'}`}
+                      data={getScatterChartData()} 
+                      options={chartOptions} 
+                    />
+                  )}
                 </>
               )}
             </Box>
@@ -919,8 +961,8 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
               )}
             </Paper>
           )}
-        </Box>
-      </Container>
+        </Container>
+      </Box>
     </ThemeProvider>
   );
 }
