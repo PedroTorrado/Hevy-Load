@@ -17,6 +17,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import MenuIcon from '@mui/icons-material/Menu';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import { Link } from 'react-router-dom';
 
 interface NavigationProps {
   onRefresh?: () => void;
@@ -90,18 +91,19 @@ export default function Navigation({ onRefresh, loading }: NavigationProps) {
               <MenuIcon />
             </IconButton>
           ) : (
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                color: 'primary.main',
-                textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
-                mr: 4,
-                cursor: 'pointer',
+            <Box
+              component={Link}
+              to="/"
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                textDecoration: 'none',
+                color: 'inherit',
+                flexGrow: { xs: 1, sm: 0 },
               }}
-              onClick={() => navigate('/')}
             >
-              Hevy-Load
-            </Typography>
+              <img src="/512x512.svg" alt="Hevy Load Logo" style={{ height: '48px', marginRight: '8px' }} />
+            </Box>
           )}
           {!isMobile && (
             <Stack direction="row" spacing={2}>
