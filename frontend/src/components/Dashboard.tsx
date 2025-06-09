@@ -493,45 +493,93 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
     maintainAspectRatio: false,
   };
 
-  // Add function to calculate one rep max PRs
   const calculateOneRepMaxPRs = useMemo(() => {
     if (!workoutData.length) return [];
-    
-    // Get fresh data from the database for the selected exercise
+  
     const exerciseWorkouts = workoutData
       .map(w => ({
         date: w.start_time,
         weight: w.weight_kg,
-        reps: w.reps
+        reps: w.reps,
       }))
-      .filter(w => w.weight > 0 && w.reps > 0); // Basic validation
-    
+      .filter(w => w.weight > 0 && w.reps > 0);
+  
     if (!exerciseWorkouts.length) return [];
-    
-    // Create a Map to track the first occurrence of each 1RM
-    const firstOccurrence = new Map<number, { date: string; weight: number; reps: number; oneRepMax: number }>();
-    
-    // Sort by date (oldest first) to ensure we get the first occurrence
-    exerciseWorkouts
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .forEach(workout => {
-        // Brzycki formula: 1RM = weight × (36 / (37 - reps))
-        const calculatedOneRepMax = workout.weight * (36 / (37 - workout.reps));
-        const oneRepMax = Math.max(calculatedOneRepMax, workout.weight);
-        const roundedOneRepMax = Math.round(oneRepMax);
-        
-        if (!firstOccurrence.has(roundedOneRepMax)) {
-          firstOccurrence.set(roundedOneRepMax, {
-            ...workout,
-            oneRepMax: roundedOneRepMax
-          });
-        }
+  
+    // Sort by date (oldest first)
+    exerciseWorkouts.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  
+    const seenCombos = new Set<string>();
+    const firstOccurrences: {
+      date: string;
+      weight: number;
+      reps: number;
+      oneRepMax: number;
+    }[] = [];
+  
+    for (const workout of exerciseWorkouts) {
+      const comboKey = `${workout.weight}x${workout.reps}`;
+      if (seenCombos.has(comboKey)) continue;
+  
+      // Brzycki formula
+      const calculatedOneRepMax = workout.weight * (36 / (37 - workout.reps));
+      const oneRepMax = Math.max(calculatedOneRepMax, workout.weight);
+      const roundedOneRepMax = Math.round(oneRepMax);
+  
+      firstOccurrences.push({
+        date: workout.date,
+        weight: workout.weight,
+        reps: workout.reps,
+        oneRepMax: roundedOneRepMax,
       });
-    
-    // Convert to array and sort by 1RM (highest first)
-    return Array.from(firstOccurrence.values())
-      .sort((a, b) => b.oneRepMax - a.oneRepMax);
+  
+      seenCombos.add(comboKey);
+    }
+  
+    // Sort descending by 1RM
+    return firstOccurrences.sort((a, b) => b.oneRepMax - a.oneRepMax);
   }, [workoutData, selectedExercise]);
+  
+
+  // // Add function to calculate one rep max PRs
+  // const calculateOneRepMaxPRs = useMemo(() => {
+  //   if (!workoutData.length) return [];
+    
+  //   // Get fresh data from the database for the selected exercise
+  //   const exerciseWorkouts = workoutData
+  //     .map(w => ({
+  //       date: w.start_time,
+  //       weight: w.weight_kg,
+  //       reps: w.reps
+  //     }))
+  //     .filter(w => w.weight > 0 && w.reps > 0); // Basic validation
+    
+  //   if (!exerciseWorkouts.length) return [];
+    
+  //   // Create a Map to track the first occurrence of each 1RM
+  //   const firstOccurrence = new Map<number, { date: string; weight: number; reps: number; oneRepMax: number }>();
+    
+  //   // Sort by date (oldest first) to ensure we get the first occurrence
+  //   exerciseWorkouts
+  //     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  //     .forEach(workout => {
+  //       // Brzycki formula: 1RM = weight × (36 / (37 - reps))
+  //       const calculatedOneRepMax = workout.weight * (36 / (37 - workout.reps));
+  //       const oneRepMax = Math.max(calculatedOneRepMax, workout.weight);
+  //       const roundedOneRepMax = Math.round(oneRepMax);
+        
+  //       if (!firstOccurrence.has(roundedOneRepMax)) {
+  //         firstOccurrence.set(roundedOneRepMax, {
+  //           ...workout,
+  //           oneRepMax: roundedOneRepMax
+  //         });
+  //       }
+  //     });
+    
+  //   // Convert to array and sort by 1RM (highest first)
+  //   return Array.from(firstOccurrence.values())
+  //     .sort((a, b) => b.oneRepMax - a.oneRepMax);
+  // }, [workoutData, selectedExercise]);
 
   // Update the checkbox handler
   const handleSingleRepToggle = (event: React.ChangeEvent<HTMLInputElement>) => {
