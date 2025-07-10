@@ -1004,7 +1004,9 @@ Request Info:
                     <Stack spacing={{ xs: 1.5, sm: 2 }}>
                       {groupedWorkouts.map(({ date, workout_title, exercise_titles = [], originalItems }) => {
                         const userWithAt = originalItems.find(item => item.description?.includes('@'))?.description || '';
-                        const username = userWithAt.includes('@') ? userWithAt.match(/@(\S+)/)?.[1] : null;
+                        const usernames = userWithAt
+                          ? Array.from(userWithAt.matchAll(/@(\w+)/g)).map(match => match[1])
+                          : [];
                         const duration = calculateWorkoutDuration(originalItems);
                         const firstStartTime = originalItems
                           .map(w => parseCustomDate(w.start_time))
@@ -1096,9 +1098,9 @@ Request Info:
                               </Typography>
                             </Box>
         
-                            {username && (
+                            {usernames.length > 0 && (
                               <Chip
-                                label={`with ${username}`}
+                                label={`with ${usernames.join(', ')}`}
                                 color="secondary"
                                 variant="filled"
                                 size={isMobile ? "small" : "medium"}
