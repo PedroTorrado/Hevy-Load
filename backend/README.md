@@ -24,9 +24,9 @@ The backend of the Workout Data Visualization application is built using Flask a
 
 ## Usage
 
-- **Upload Data**: Use the `/api/upload` endpoint to upload a CSV file with workout data.
+- **Upload Data**: Use the `/api/user/upload` endpoint to upload a CSV file with workout data.
 - **Get Exercises**: Use the `/api/exercises` endpoint to retrieve a list of unique exercises.
-- **Get Workouts**: Use the `/api/workouts` endpoint to fetch workout data, optionally filtered by exercise.
+- **Get Workouts**: Use the `/api/user/workouts` endpoint to fetch workout data, optionally filtered by exercise.
 
 ## Key Features
 

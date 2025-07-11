@@ -22,8 +22,6 @@ import {
 import axios from 'axios';
 import Navigation from './Navigation';
 import InfoIcon from '@mui/icons-material/Info';
-import { useAuth } from './AuthContext';
-import Home from './home';
 
 // API URL configuration - automatically detect server address
 const getApiUrl = () => {
@@ -83,12 +81,7 @@ interface Workout {
   reps: number;
 }
 
-<<<<<<< HEAD
-// PowerliftingMetrics interface(no ipfPoints)
-        
-=======
 // PowerliftingMetrics interface (no ipfPoints)
->>>>>>> d8960ce (Implement user authentication and session management in backend)
 interface PowerliftingMetrics {
   dots: number;
   wilks: number;
@@ -203,9 +196,8 @@ const calculateWilks = (total: number, bodyweight: number, isMale: boolean): num
   return Math.round(score * 100) / 100; // Round to 2 decimal places
 };
 
-function LandingPage() {
+function Home() {
   const navigate = useNavigate();
-<<<<<<< HEAD
   const [loading, setLoading] = useState(true);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -245,8 +237,8 @@ function LandingPage() {
 
   const fetchPRs = async () => {
     try {
-      console.log('Attempting to fetch workouts from:', `${API_URL}/api/workouts`);
-      const response = await axios.get(`${API_URL}/api/workouts`);
+      console.log('Attempting to fetch workouts from:', `${API_URL}/api/user/workouts`);
+      const response = await axios.get(`${API_URL}/api/user/workouts`, { withCredentials: true });
       const workouts = response.data;
       console.log('Successfully fetched workouts:', workouts.length);
 
@@ -377,7 +369,6 @@ function LandingPage() {
             color: `${color}`,
             fontWeight: 600,
             letterSpacing: '0.5px',
-            textAlign: 'center',
           }}
         >
           {title}
@@ -392,7 +383,6 @@ function LandingPage() {
                 color: 'white',
                 textShadow: `0 0 20px ${color}40`,
                 mb: 1,
-                textAlign: 'center',
               }}
             >
               {pr.weight} kg
@@ -402,7 +392,6 @@ function LandingPage() {
               sx={{ 
                 color: 'text.secondary',
                 mb: 2,
-                textAlign: 'center',
               }}
             >
               {pr.reps} reps
@@ -572,13 +561,14 @@ function LandingPage() {
       setError(null);
       setUploadSuccess(false);
       
-      console.log('Attempting to upload file to:', `${API_URL}/api/upload`);
+      console.log('Attempting to upload file to:', `${API_URL}/api/user/upload`);
       // Add timeout to the request
-      const response = await axios.post(`${API_URL}/api/upload`, formData, {
+      const response = await axios.post(`${API_URL}/api/user/upload`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
         timeout: 30000, // 30 second timeout
+        withCredentials: true,
       });
 
       if (response.data.error) {
@@ -625,7 +615,7 @@ function LandingPage() {
   // Update PowerliftingMetricsCard to only show DOTS and Wilks
   const PowerliftingMetricsCard = () => {
     if (!metrics) return null;
-  return (
+    return (
       <Paper 
         sx={{ 
           p: 4,
@@ -753,21 +743,20 @@ function LandingPage() {
               },
               endAdornment: (
                 <InputAdornment position="end" sx={{ ml: 1 }}>
-        <Box sx={{ 
-          px: 2.5,
-          py: 0,
-          borderRadius: '999px',
-          background: 'linear-gradient(90deg, #90caf9 0%, #64b5f6 100%)',
-          color: 'white',
-          fontWeight: 600,
-          fontSize: '1.1rem',
-          letterSpacing: 1,
-          minWidth: '36px',
-          textAlign: 'center',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-
+                  <Box sx={{
+                    px: 2.5,
+                    py: 0,
+                    borderRadius: '999px',
+                    background: 'linear-gradient(90deg, #90caf9 0%, #64b5f6 100%)',
+                    color: 'white',
+                    fontWeight: 600,
+                    fontSize: '1.1rem',
+                    letterSpacing: 1,
+                    minWidth: '36px',
+                    textAlign: 'center',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     height: '44px',
                     lineHeight: '44px',
                   }}>
@@ -937,11 +926,6 @@ function LandingPage() {
       </Paper>
     );
   };
-=======
-  const { isAuthenticated, loading } = useAuth();
-  if (loading) return null;
-  if (isAuthenticated) return <Home />;
->>>>>>> d8960ce (Implement user authentication and session management in backend)
 
   return (
     <ThemeProvider theme={theme}>
@@ -952,131 +936,189 @@ function LandingPage() {
         pb: 4,
       }}>
         <Navigation />
-        <Container maxWidth="lg" sx={{ mt: 4, mb: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <Box sx={{ mb: 4 }}>
-            <img
-              src="/512x512.svg"
-              alt="Hevy Load Logo"
-              style={{ width: '150px', height: 'auto', display: 'block', margin: '0 auto' }}
-            />
-          </Box>
-          <Typography variant="h4" component="h1" sx={{
-            textAlign: 'center',
-            mb: 4,
-            color: 'primary.main',
-            textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
-            fontSize: { xs: '2.5rem', sm: '3.5rem', md: '4rem' },
-            fontWeight: 700,
-            letterSpacing: '0.5px',
-          }}>
-            Hevy - Load
-          </Typography>
-          <Typography variant="h5" sx={{ mb: 6, color: 'text.secondary', textAlign: 'center' }}>
-            Track and visualize your workout progress. Import your data from Hevy and get beautiful analytics!
-          </Typography>
-<<<<<<< HEAD
 
-          {/* PRs Section */}
-          <Box sx={{ width: '100%', maxWidth: '1000px', mb: 6 }}>
-            <Typography 
-              variant="h4" 
-              sx={{ 
-                mb: 4, 
-                color: 'primary.main',
-                textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
-                fontWeight: 600,
-              }}
-            >
-              Personal Records
+        <Container maxWidth="lg">
+          <Box sx={{ 
+            my: 4,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '80vh',
+            textAlign: 'center'
+          }}>
+            <Typography variant="h2" component="h1" gutterBottom sx={{ 
+              color: 'primary.main',
+              textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
+              mb: 4
+            }}>
+              Hevy - Load
             </Typography>
             
-            {loading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-                <CircularProgress sx={{ color: 'primary.main' }} />
-              </Box>
-            ) : (
-              <>
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={4}>
-                  <PRCard 
-                    title="Bench Press" 
-                    pr={prs.bench} 
-                    color="#90caf9"
-                  />
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <PRCard 
-                    title="Squat" 
-                    pr={prs.squat} 
-                    color="#f48fb1"
-                  />
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <PRCard 
-                    title="Deadlift" 
-                    pr={prs.deadlift} 
-                    color="#66bb6a"
-                  />
-                </Grid>
-              </Grid>
-                <WeightInputCard />
-                <PowerliftingMetricsCard />
-              </>
-            )}
-          </Box>
-        
-=======
->>>>>>> d8960ce (Implement user authentication and session management in backend)
-          <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <Button
-              variant="outlined"
-              size="large"
-              onClick={() => window.open('https://hevy.com/settings?export', '_blank')}
-              sx={{
-                width: '300px',
-                height: '60px',
-                borderColor: 'primary.main',
-                color: 'primary.main',
-                '&:hover': {
-                  borderColor: 'primary.light',
-                  backgroundColor: 'rgba(144, 202, 249, 0.1)',
-                },
-              }}
+            <Typography variant="h5" sx={{ mb: 6, color: 'text.secondary' }}>
+              Track and visualize your workout progress
+            </Typography>
+
+            {/* PRs Section */}
+            <Box sx={{ width: '100%', maxWidth: '1000px', mb: 6 }}>
+              <Typography 
+                variant="h4" 
+                sx={{ 
+                  mb: 4, 
+                  color: 'primary.main',
+                  textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
+                  fontWeight: 600,
+                }}
+              >
+                Personal Records
+              </Typography>
+              
+              {loading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                  <CircularProgress sx={{ color: 'primary.main' }} />
+                </Box>
+              ) : (
+                <>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={4}>
+                      <PRCard 
+                        title="Bench Press" 
+                        pr={prs.bench} 
+                        color="#90caf9"
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                      <PRCard 
+                        title="Squat" 
+                        pr={prs.squat} 
+                        color="#f48fb1"
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                      <PRCard 
+                        title="Deadlift" 
+                        pr={prs.deadlift} 
+                        color="#66bb6a"
+                      />
+                    </Grid>
+                  </Grid>
+                  <WeightInputCard />
+                  <PowerliftingMetricsCard />
+                </>
+              )}
+            </Box>
+
+            <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <input
+                accept=".csv"
+                style={{ display: 'none' }}
+                id="upload-button-file"
+                type="file"
+                onChange={handleFileUpload}
+                capture="environment"
+              />
+
+              <Button
+                variant="outlined"
+                size="large"
+                onClick={() => window.open('https://hevy.com/settings?export', '_blank')}
+                sx={{
+                  width: '300px',
+                  height: '60px',
+                  borderColor: 'primary.main',
+                  color: 'primary.main',
+                  '&:hover': {
+                    borderColor: 'primary.light',
+                    backgroundColor: 'rgba(144, 202, 249, 0.1)',
+                  },
+                }}
+              >
+                Export from Hevy
+              </Button>
+
+              <label htmlFor="upload-button-file">
+                <Button
+                  variant="contained"
+                  size="large"
+                  component="span"
+                  disabled={uploadLoading}
+                  sx={{
+                    width: '300px',
+                    height: '60px',
+                    background: 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
+                    boxShadow: '0 3px 5px 2px rgba(144, 202, 249, .3)',
+                    '&:hover': {
+                      background: 'linear-gradient(45deg, #64b5f6 30%, #42a5f5 90%)',
+                    },
+                  }}
+                >
+                  {uploadLoading ? 'Uploading...' : 'Import Workout Data'}
+                </Button>
+              </label>
+
+              <Button
+                variant="contained"
+                size="large"
+                onClick={() => navigate('/dashboard')}
+                sx={{
+                  width: '300px',
+                  height: '60px',
+                  background: uploadSuccess 
+                    ? 'linear-gradient(45deg, #4caf50 30%, #45a049 90%)'
+                    : 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
+                  boxShadow: uploadSuccess
+                    ? '0 3px 5px 2px rgba(76, 175, 80, .3)'
+                    : '0 3px 5px 2px rgba(144, 202, 249, .3)',
+                  animation: uploadSuccess ? 'pulse 2s infinite' : 'none',
+                  '&:hover': {
+                    background: uploadSuccess
+                      ? 'linear-gradient(45deg, #45a049 30%, #3d8b40 90%)'
+                      : 'linear-gradient(45deg, #64b5f6 30%, #42a5f5 90%)',
+                  },
+                }}
+              >
+                {uploadSuccess ? 'View Your Data →' : 'Go to Dashboard'}
+              </Button>
+            </Box>
+
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                gap: 3, 
+                flexWrap: 'wrap', 
+                justifyContent: 'center',
+                mt: 4
+              }}>
+                <Button
+                  variant="contained"
+                  size="large"
+                  onClick={() => navigate('/workouts')}
+                >
+                  View Workouts
+                </Button>
+            </Box>
+
+            <Snackbar 
+              open={!!error} 
+              autoHideDuration={6000} 
+              onClose={() => setError(null)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
             >
-              Export from Hevy
-            </Button>
-            <Button
-              variant="contained"
-              size="large"
-              onClick={() => navigate('/register')}
-              sx={{
-                width: '300px',
-                height: '60px',
-                background: 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
-                boxShadow: '0 3px 5px 2px rgba(144, 202, 249, .3)',
-                '&:hover': {
-                  background: 'linear-gradient(45deg, #64b5f6 30%, #42a5f5 90%)',
-                },
-              }}
+              <Alert onClose={() => setError(null)} severity="error" sx={{ width: '100%' }}>
+                {error}
+              </Alert>
+            </Snackbar>
+
+            <Snackbar 
+              open={uploadSuccess} 
+              autoHideDuration={6000} 
+              onClose={() => setUploadSuccess(false)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
             >
-              Get Started
-            </Button>
-            <Button
-              variant="contained"
-              size="large"
-              onClick={() => navigate('/login')}
-              sx={{
-                width: '300px',
-                height: '60px',
-                background: 'linear-gradient(45deg, #f48fb1 30%, #f06292 90%)',
-                boxShadow: '0 3px 5px 2px rgba(244, 143, 177, .3)',
-                '&:hover': {
-                  background: 'linear-gradient(45deg, #f06292 30%, #ec407a 90%)',
-                },
-              }}
-            >
-              Login
-            </Button>
+              <Alert onClose={() => setUploadSuccess(false)} severity="success" sx={{ width: '100%' }}>
+                Data uploaded successfully! Click the dashboard button to view your progress.
+              </Alert>
+            </Snackbar>
           </Box>
         </Container>
       </Box>
@@ -1084,4 +1126,4 @@ function LandingPage() {
   );
 }
 
-export default LandingPage; 
+export default Home; 

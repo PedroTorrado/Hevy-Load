@@ -345,7 +345,7 @@ export default function Workouts() {
         setLoading(true);
         setError(null);
         
-        const response = await axios.get(`${API_URL}/api/workouts`);
+        const response = await axios.get(`${API_URL}/api/user/workouts`, { withCredentials: true });
         if (response.data.error) throw new Error(response.data.error);
         if (!Array.isArray(response.data)) {
           throw new Error(`Invalid data format received. Expected array, got ${typeof response.data}. Data: ${JSON.stringify(response.data).slice(0, 100)}...`);

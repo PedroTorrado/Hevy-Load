@@ -242,7 +242,7 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
       setLoading(true);
       setError(null);
       console.log('Fetching workouts for exercise:', selectedExercise);
-      const response = await axios.get(`${API_URL}/api/workouts`);
+      const response = await axios.get(`${API_URL}/api/user/workouts`, { withCredentials: true });
       
       // Debug logging for squat data
       if (selectedExercise.toLowerCase().includes('squat')) {
@@ -264,30 +264,6 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
       setError('Failed to fetch workouts. Please try again.');
       setWorkouts([]);
       setWorkoutData([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await axios.post(`${API_URL}/api/upload`, formData);
-      if (response.data.error) {
-        throw new Error(response.data.error);
-      }
-      await fetchWorkouts();
-      await fetchExercises();
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      setError('Failed to upload file. Please check the file format and try again.');
     } finally {
       setLoading(false);
     }
@@ -649,35 +625,7 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
             },
           }}>
             <Box sx={{ gridColumn: 'span 12', textAlign: 'center' }}>
-              <input
-                accept=".csv"
-                style={{ display: 'none' }}
-                id="raised-button-file"
-                type="file"
-                onChange={handleFileUpload}
-              />
-              <label htmlFor="raised-button-file">
-                <Button 
-                  variant="contained" 
-                  component="span" 
-                  disabled={loading}
-                  sx={{
-                    py: 1.5,
-                    px: 4,
-                    fontSize: '1.1rem',
-                    background: 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
-                    boxShadow: '0 3px 5px 2px rgba(144, 202, 249, .3)',
-                    '&:hover': {
-                      background: 'linear-gradient(45deg, #64b5f6 30%, #42a5f5 90%)',
-                      transform: 'translateY(-2px)',
-                      boxShadow: '0 5px 15px rgba(144, 202, 249, .4)',
-                    },
-                    transition: 'all 0.2s ease-in-out',
-                  }}
-                >
-                  {loading ? 'Uploading...' : 'Upload Workout CSV'}
-                </Button>
-              </label>
+              {/* Removed upload button and file input */}
             </Box>
 
             <Box sx={{ gridColumn: { xs: 'span 12', md: 'span 3' } }}>
@@ -827,7 +775,7 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
                   borderRadius: 2,
                 }}>
                   <Typography variant="h6">
-                    No data available. Please upload a CSV file.
+                    No data available. Please upload your workout CSV from the Home page.
                   </Typography>
                 </Box>
               ) : (
