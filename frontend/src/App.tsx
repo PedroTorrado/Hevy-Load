@@ -97,6 +97,25 @@ interface Workout {
   rpe?: number;
 }
 
+// API URL configuration - automatically detect server address
+const getApiUrl = () => {
+  const hostname = window.location.hostname;
+  const protocol = window.location.protocol;
+  const port = '5001';
+  
+  // Log connection details for debugging
+  console.log('Current hostname:', hostname);
+  console.log('Current protocol:', protocol);
+  console.log('Current full URL:', window.location.href);
+  
+  // If running locally, use localhost, otherwise use the current hostname
+  const apiUrl = `${protocol}//${hostname === 'localhost' || hostname === '127.0.0.1' ? 'localhost' : hostname}:${port}`;
+  console.log('API URL:', apiUrl);
+  return apiUrl;
+};
+
+const API_URL = getApiUrl();
+
 function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts: React.Dispatch<React.SetStateAction<Workout[]>> }) {
   const navigate = useNavigate();
   const [exercises, setExercises] = useState<string[]>([]);
@@ -184,7 +203,7 @@ function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkout
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get('http://localhost:5001/api/exercises');
+      const response = await axios.get(`${API_URL}/api/exercises`);
       const exercisesList = response.data;
       setExercises(exercisesList);
       // If the saved exercise exists in the list, use it, otherwise use Bench Press
@@ -206,7 +225,7 @@ function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkout
       setLoading(true);
       setError(null);
       console.log('Fetching workouts for exercise:', selectedExercise);
-      const response = await axios.get('http://localhost:5001/api/workouts');
+      const response = await axios.get(`${API_URL}/api/workouts`);
       
       // Debug logging for squat data
       if (selectedExercise.toLowerCase().includes('squat')) {
@@ -243,7 +262,7 @@ function AppContent({ workouts, setWorkouts }: { workouts: Workout[], setWorkout
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.post('http://localhost:5001/api/upload', formData);
+      const response = await axios.post(`${API_URL}/api/upload`, formData);
       if (response.data.error) {
         throw new Error(response.data.error);
       }
@@ -820,7 +839,7 @@ function App() {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get('http://localhost:5001/api/workouts');
+      const response = await axios.get(`${API_URL}/api/workouts`);
       if (response.data.error) {
         throw new Error(response.data.error);
       }

@@ -82,6 +82,7 @@ interface Workout {
 }
 
 // PowerliftingMetrics interface(no ipfPoints)
+        
 interface PowerliftingMetrics {
   dots: number;
   wilks: number;
@@ -746,19 +747,20 @@ function LandingPage() {
               endAdornment: (
                 <InputAdornment position="end" sx={{ ml: 1 }}>
         <Box sx={{ 
-                    px: 2.5,
-                    py: 0,
-                    borderRadius: '999px',
-                    background: 'linear-gradient(90deg, #90caf9 0%, #64b5f6 100%)',
-                    color: 'white',
-                    fontWeight: 600,
-                    fontSize: '1.1rem',
-                    letterSpacing: 1,
-                    minWidth: '36px',
-                    textAlign: 'center',
+          px: 2.5,
+          py: 0,
+          borderRadius: '999px',
+          background: 'linear-gradient(90deg, #90caf9 0%, #64b5f6 100%)',
+          color: 'white',
+          fontWeight: 600,
+          fontSize: '1.1rem',
+          letterSpacing: 1,
+          minWidth: '36px',
+          textAlign: 'center',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+
                     height: '44px',
                     lineHeight: '44px',
                   }}>
@@ -1010,7 +1012,7 @@ function LandingPage() {
               </>
             )}
           </Box>
-
+        
           <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
             <input
               accept=".csv"

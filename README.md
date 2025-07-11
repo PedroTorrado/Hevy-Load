@@ -2,6 +2,8 @@
 
 A web application for visualizing workout data from CSV files.
 
+Last updated: 2024-03-19 (Testing GitHub Actions workflow)
+
 ---
 
 ## 🚀 Running with Docker (Recommended)
