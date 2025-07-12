@@ -23,7 +23,14 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True, origins=["http://localhost:3000", "http://127.0.0.1:3000"])
+CORS(app, supports_credentials=True, origins=[
+    "http://localhost:3000", 
+    "http://127.0.0.1:3000",
+    "http://localhost:1234",
+    "http://127.0.0.1:1234",
+    "http://frontend:1234",
+    "http://0.0.0.0:1234"
+])
 
 # Handle proxy headers
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
@@ -74,26 +81,64 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    try:
+        # Test MongoDB connection
+        client.admin.command('ping')
+        return jsonify({
+            'status': 'healthy',
+            'mongodb': 'connected',
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        return jsonify({
+            'status': 'unhealthy',
+            'mongodb': 'disconnected',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
 @app.route('/api/register', methods=['POST'])
 def register():
-    data = request.get_json()
-    email = data.get('email')
-    password = data.get('password')
-    hevy_username = data.get('hevy_username')
-    gemini_api_key = data.get('gemini_api_key')  # Optional
-    if not email or not password or not hevy_username:
-        return jsonify({'error': 'Email, password, and Hevy username are required'}), 400
-    if users_collection.find_one({'email': email}):
-        return jsonify({'error': 'Email already registered'}), 400
-    password_hash = generate_password_hash(password)
-    user = {
-        'email': email,
-        'password_hash': password_hash,
-        'hevy_username': hevy_username,
-        'gemini_api_key': gemini_api_key or None
-    }
-    users_collection.insert_one(user)
-    return jsonify({'message': 'User registered successfully'})
+    try:
+        data = request.get_json()
+        if not data:
+            logger.error("No JSON data received in registration request")
+            return jsonify({'error': 'No data provided'}), 400
+            
+        email = data.get('email')
+        password = data.get('password')
+        hevy_username = data.get('hevy_username')
+        gemini_api_key = data.get('gemini_api_key')  # Optional
+        
+        logger.info(f"Registration attempt for email: {email}")
+        
+        if not email or not password or not hevy_username:
+            logger.error(f"Missing required fields. Email: {bool(email)}, Password: {bool(password)}, Hevy Username: {bool(hevy_username)}")
+            return jsonify({'error': 'Email, password, and Hevy username are required'}), 400
+            
+        if users_collection.find_one({'email': email}):
+            logger.warning(f"Registration failed: Email {email} already registered")
+            return jsonify({'error': 'Email already registered'}), 400
+            
+        password_hash = generate_password_hash(password)
+        user = {
+            'email': email,
+            'password_hash': password_hash,
+            'hevy_username': hevy_username,
+            'gemini_api_key': gemini_api_key or None
+        }
+        
+        result = users_collection.insert_one(user)
+        logger.info(f"Successfully registered user {email} with ID {result.inserted_id}")
+        return jsonify({'message': 'User registered successfully'})
+        
+    except Exception as e:
+        logger.error(f"Error during registration: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': 'Registration failed. Please try again.'}), 500
 
 @app.route('/api/login', methods=['POST'])
 def login():

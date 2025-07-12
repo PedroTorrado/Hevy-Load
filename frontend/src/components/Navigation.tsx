@@ -55,6 +55,13 @@ export default function Navigation({ onRefresh, loading }: NavigationProps) {
     const hostname = window.location.hostname;
     const protocol = window.location.protocol;
     const port = '5001';
+    
+    // If running in Docker (nginx proxy), use relative URLs
+    if (hostname === 'localhost' && window.location.port === '1234') {
+      return ''; // Use relative URLs for Docker deployment
+    }
+    
+    // Otherwise use the dynamic URL construction
     return `${protocol}//${hostname === 'localhost' || hostname === '127.0.0.1' ? 'localhost' : hostname}:${port}`;
   };
   const API_URL = getApiUrl();
