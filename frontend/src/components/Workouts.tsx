@@ -191,7 +191,13 @@ const getApiUrl = () => {
   console.log('Current protocol:', protocol);
   console.log('Current full URL:', window.location.href);
   
-  // If running locally, use localhost, otherwise use the current hostname
+  // If running in Docker (nginx proxy), use relative URLs
+  if (hostname === 'localhost' && window.location.port === '1234') {
+    console.log('Detected Docker deployment, using relative URLs');
+    return ''; // Use relative URLs for Docker deployment
+  }
+  
+  // Otherwise use the dynamic URL construction
   const apiUrl = `${protocol}//${hostname === 'localhost' || hostname === '127.0.0.1' ? 'localhost' : hostname}:${port}`;
   console.log('API URL:', apiUrl);
   return apiUrl;
@@ -345,7 +351,7 @@ export default function Workouts() {
         setLoading(true);
         setError(null);
         
-        const response = await axios.get(`${API_URL}/api/workouts`);
+        const response = await axios.get(`${API_URL}/api/user/workouts`, { withCredentials: true });
         if (response.data.error) throw new Error(response.data.error);
         if (!Array.isArray(response.data)) {
           throw new Error(`Invalid data format received. Expected array, got ${typeof response.data}. Data: ${JSON.stringify(response.data).slice(0, 100)}...`);
@@ -1004,7 +1010,9 @@ Request Info:
                     <Stack spacing={{ xs: 1.5, sm: 2 }}>
                       {groupedWorkouts.map(({ date, workout_title, exercise_titles = [], originalItems }) => {
                         const userWithAt = originalItems.find(item => item.description?.includes('@'))?.description || '';
-                        const username = userWithAt.includes('@') ? userWithAt.match(/@(\S+)/)?.[1] : null;
+                        const usernames = userWithAt
+                          ? Array.from(userWithAt.matchAll(/@(\w+)/g)).map(match => match[1])
+                          : [];
                         const duration = calculateWorkoutDuration(originalItems);
                         const firstStartTime = originalItems
                           .map(w => parseCustomDate(w.start_time))
@@ -1096,9 +1104,9 @@ Request Info:
                               </Typography>
                             </Box>
         
-                            {username && (
+                            {usernames.length > 0 && (
                               <Chip
-                                label={`with ${username}`}
+                                label={`with ${usernames.join(', ')}`}
                                 color="secondary"
                                 variant="filled"
                                 size={isMobile ? "small" : "medium"}

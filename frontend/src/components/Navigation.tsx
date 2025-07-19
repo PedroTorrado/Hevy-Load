@@ -11,12 +11,21 @@ import {
   useMediaQuery,
   useTheme,
   Tooltip,
+  Menu,
+  MenuItem,
+  Divider,
+  TextField
 } from '@mui/material';
 import HomeIcon from '@mui/icons-material/Home';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import MenuIcon from '@mui/icons-material/Menu';
-import RefreshIcon from '@mui/icons-material/Refresh';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import { Link } from 'react-router-dom';
+import { useAuth } from './AuthContext';
+import axios from 'axios';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
 interface NavigationProps {
   onRefresh?: () => void;
@@ -29,6 +38,40 @@ export default function Navigation({ onRefresh, loading }: NavigationProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const { isAuthenticated, refreshAuth } = useAuth();
+  const [showKey, setShowKey] = useState(false);
+  const [geminiKey, setGeminiKey] = useState('');
+
+  const handleUserMenu = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  // Add getApiUrl and API_URL logic
+  const getApiUrl = () => {
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    const port = '5001';
+    
+    // If running in Docker (nginx proxy), use relative URLs
+    if (hostname === 'localhost' && window.location.port === '1234') {
+      return ''; // Use relative URLs for Docker deployment
+    }
+    
+    // Otherwise use the dynamic URL construction
+    return `${protocol}//${hostname === 'localhost' || hostname === '127.0.0.1' ? 'localhost' : hostname}:${port}`;
+  };
+  const API_URL = getApiUrl();
+
+  const handleLogout = async () => {
+    await axios.post(`${API_URL}/api/logout`, {}, { withCredentials: true });
+    await refreshAuth();
+    handleClose();
+    navigate('/');
+  };
 
   const NavButton = ({ to, icon: Icon, label }: { to: string; icon: React.ElementType; label: string }) => (
     <Button
@@ -90,18 +133,19 @@ export default function Navigation({ onRefresh, loading }: NavigationProps) {
               <MenuIcon />
             </IconButton>
           ) : (
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                color: 'primary.main',
-                textShadow: '0 0 10px rgba(144, 202, 249, 0.3)',
-                mr: 4,
-                cursor: 'pointer',
+            <Box
+              component={Link}
+              to="/"
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                textDecoration: 'none',
+                color: 'inherit',
+                flexGrow: { xs: 1, sm: 0 },
               }}
-              onClick={() => navigate('/')}
             >
-              Hevy-Load
-            </Typography>
+              <img src="/512x512.svg" alt="Hevy Load Logo" style={{ height: '48px', marginRight: '8px' }} />
+            </Box>
           )}
           {!isMobile && (
             <Stack direction="row" spacing={2}>
@@ -111,25 +155,37 @@ export default function Navigation({ onRefresh, loading }: NavigationProps) {
             </Stack>
           )}
         </Box>
-        {onRefresh && (
-          <Tooltip title="Refresh data">
-            <IconButton 
-              onClick={onRefresh} 
-              disabled={loading}
-              sx={{ 
-                bgcolor: 'rgba(144, 202, 249, 0.1)',
-                border: '1px solid rgba(144, 202, 249, 0.2)',
-                '&:hover': { 
-                  bgcolor: 'rgba(144, 202, 249, 0.15)',
-                  transform: 'translateY(-2px)',
-                },
-                transition: 'all 0.2s ease-in-out',
-              }}
-            >
-              <RefreshIcon />
-            </IconButton>
-          </Tooltip>
-        )}
+        <Box sx={{ flexGrow: 1 }} />
+        {/* User button on the right */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <IconButton
+            onClick={handleUserMenu}
+            sx={{ color: 'primary.main', ml: 1 }}
+            aria-label="user menu"
+          >
+            <AccountCircleIcon fontSize="large" />
+          </IconButton>
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={handleClose}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          >
+            {isAuthenticated ? (
+              <>
+                <MenuItem onClick={() => { handleClose(); navigate('/user'); }}>User Info</MenuItem>
+                <Divider />
+                <MenuItem onClick={handleLogout}>Logout</MenuItem>
+              </>
+            ) : (
+              <>
+                <MenuItem onClick={() => { handleClose(); navigate('/login'); }}>Login</MenuItem>
+                <MenuItem onClick={() => { handleClose(); navigate('/register'); }}>Register</MenuItem>
+              </>
+            )}
+          </Menu>
+        </Box>
       </Toolbar>
       {isMobile && mobileMenuOpen && (
         <Box 

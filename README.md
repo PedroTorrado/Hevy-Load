@@ -20,7 +20,7 @@ sudo docker build -t hevy-load .
 sudo docker rm -f hevy-load-container
 
 # Run the application
-sudo docker run -d -p 80:80 -p 5001:5001 -p 27017:27017 --name hevy-load-container hevy-load
+sudo docker run -d -p 1234:1234 -p 5001:5001 -p 27017:27017 --name hevy-load-container hevy-load
 ```
 
 - The frontend will be available at: http://localhost

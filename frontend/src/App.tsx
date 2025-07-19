@@ -40,6 +40,11 @@ import WorkoutDetails from './components/WorkoutDetails';
 import LandingPage from './components/LandingPage';
 import Dashboard from './components/Dashboard';
 import Workouts from './components/Workouts';
+import Register from './components/Register';
+import { AuthProvider } from './components/AuthContext';
+import RequireAuth from './components/RequireAuth';
+import Login from './components/Login';
+import UserInfo from './components/UserInfo';
 
 // Register ChartJS components
 ChartJS.register(
@@ -108,7 +113,13 @@ const getApiUrl = () => {
   console.log('Current protocol:', protocol);
   console.log('Current full URL:', window.location.href);
   
-  // If running locally, use localhost, otherwise use the current hostname
+  // If running in Docker (nginx proxy), use relative URLs
+  if (hostname === 'localhost' && window.location.port === '1234') {
+    console.log('Detected Docker deployment, using relative URLs');
+    return ''; // Use relative URLs for Docker deployment
+  }
+  
+  // Otherwise use the dynamic URL construction
   const apiUrl = `${protocol}//${hostname === 'localhost' || hostname === '127.0.0.1' ? 'localhost' : hostname}:${port}`;
   console.log('API URL:', apiUrl);
   return apiUrl;
@@ -861,14 +872,19 @@ function App() {
   }, []);
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/dashboard" element={<Dashboard workouts={workouts} setWorkouts={setWorkouts} />} />
-        <Route path="/workout/:date" element={<WorkoutDetails workouts={workouts} />} />
-        <Route path="/workouts" element={<Workouts />} />
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/dashboard" element={<RequireAuth><Dashboard workouts={workouts} setWorkouts={setWorkouts} /></RequireAuth>} />
+          <Route path="/workouts" element={<RequireAuth><Workouts /></RequireAuth>} />
+          <Route path="/workout/:date" element={<RequireAuth><WorkoutDetails workouts={workouts} /></RequireAuth>} />
+          <Route path="/user" element={<RequireAuth><UserInfo /></RequireAuth>} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 

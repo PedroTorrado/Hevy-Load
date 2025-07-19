@@ -45,7 +45,13 @@ const getApiUrl = () => {
   const hostname = window.location.hostname;
   const protocol = window.location.protocol;
   const port = '5001';
-  // If running locally, use localhost, otherwise use the current hostname
+  
+  // If running in Docker (nginx proxy), use relative URLs
+  if (hostname === 'localhost' && window.location.port === '1234') {
+    return ''; // Use relative URLs for Docker deployment
+  }
+  
+  // Otherwise use the dynamic URL construction
   const apiUrl = `${protocol}//${hostname === 'localhost' || hostname === '127.0.0.1' ? 'localhost' : hostname}:${port}`;
   return apiUrl;
 };
@@ -242,7 +248,7 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
       setLoading(true);
       setError(null);
       console.log('Fetching workouts for exercise:', selectedExercise);
-      const response = await axios.get(`${API_URL}/api/workouts`);
+      const response = await axios.get(`${API_URL}/api/user/workouts`, { withCredentials: true });
       
       // Debug logging for squat data
       if (selectedExercise.toLowerCase().includes('squat')) {
@@ -264,30 +270,6 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
       setError('Failed to fetch workouts. Please try again.');
       setWorkouts([]);
       setWorkoutData([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await axios.post(`${API_URL}/api/upload`, formData);
-      if (response.data.error) {
-        throw new Error(response.data.error);
-      }
-      await fetchWorkouts();
-      await fetchExercises();
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      setError('Failed to upload file. Please check the file format and try again.');
     } finally {
       setLoading(false);
     }
@@ -493,45 +475,93 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
     maintainAspectRatio: false,
   };
 
-  // Add function to calculate one rep max PRs
   const calculateOneRepMaxPRs = useMemo(() => {
     if (!workoutData.length) return [];
-    
-    // Get fresh data from the database for the selected exercise
+  
     const exerciseWorkouts = workoutData
       .map(w => ({
         date: w.start_time,
         weight: w.weight_kg,
-        reps: w.reps
+        reps: w.reps,
       }))
-      .filter(w => w.weight > 0 && w.reps > 0); // Basic validation
-    
+      .filter(w => w.weight > 0 && w.reps > 0);
+  
     if (!exerciseWorkouts.length) return [];
-    
-    // Create a Map to track the first occurrence of each 1RM
-    const firstOccurrence = new Map<number, { date: string; weight: number; reps: number; oneRepMax: number }>();
-    
-    // Sort by date (oldest first) to ensure we get the first occurrence
-    exerciseWorkouts
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .forEach(workout => {
-        // Brzycki formula: 1RM = weight × (36 / (37 - reps))
-        const calculatedOneRepMax = workout.weight * (36 / (37 - workout.reps));
-        const oneRepMax = Math.max(calculatedOneRepMax, workout.weight);
-        const roundedOneRepMax = Math.round(oneRepMax);
-        
-        if (!firstOccurrence.has(roundedOneRepMax)) {
-          firstOccurrence.set(roundedOneRepMax, {
-            ...workout,
-            oneRepMax: roundedOneRepMax
-          });
-        }
+  
+    // Sort by date (oldest first)
+    exerciseWorkouts.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  
+    const seenCombos = new Set<string>();
+    const firstOccurrences: {
+      date: string;
+      weight: number;
+      reps: number;
+      oneRepMax: number;
+    }[] = [];
+  
+    for (const workout of exerciseWorkouts) {
+      const comboKey = `${workout.weight}x${workout.reps}`;
+      if (seenCombos.has(comboKey)) continue;
+  
+      // Brzycki formula
+      const calculatedOneRepMax = workout.weight * (36 / (37 - workout.reps));
+      const oneRepMax = Math.max(calculatedOneRepMax, workout.weight);
+      const roundedOneRepMax = Math.round(oneRepMax);
+  
+      firstOccurrences.push({
+        date: workout.date,
+        weight: workout.weight,
+        reps: workout.reps,
+        oneRepMax: roundedOneRepMax,
       });
-    
-    // Convert to array and sort by 1RM (highest first)
-    return Array.from(firstOccurrence.values())
-      .sort((a, b) => b.oneRepMax - a.oneRepMax);
+  
+      seenCombos.add(comboKey);
+    }
+  
+    // Sort descending by 1RM
+    return firstOccurrences.sort((a, b) => b.oneRepMax - a.oneRepMax);
   }, [workoutData, selectedExercise]);
+  
+
+  // // Add function to calculate one rep max PRs
+  // const calculateOneRepMaxPRs = useMemo(() => {
+  //   if (!workoutData.length) return [];
+    
+  //   // Get fresh data from the database for the selected exercise
+  //   const exerciseWorkouts = workoutData
+  //     .map(w => ({
+  //       date: w.start_time,
+  //       weight: w.weight_kg,
+  //       reps: w.reps
+  //     }))
+  //     .filter(w => w.weight > 0 && w.reps > 0); // Basic validation
+    
+  //   if (!exerciseWorkouts.length) return [];
+    
+  //   // Create a Map to track the first occurrence of each 1RM
+  //   const firstOccurrence = new Map<number, { date: string; weight: number; reps: number; oneRepMax: number }>();
+    
+  //   // Sort by date (oldest first) to ensure we get the first occurrence
+  //   exerciseWorkouts
+  //     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  //     .forEach(workout => {
+  //       // Brzycki formula: 1RM = weight × (36 / (37 - reps))
+  //       const calculatedOneRepMax = workout.weight * (36 / (37 - workout.reps));
+  //       const oneRepMax = Math.max(calculatedOneRepMax, workout.weight);
+  //       const roundedOneRepMax = Math.round(oneRepMax);
+        
+  //       if (!firstOccurrence.has(roundedOneRepMax)) {
+  //         firstOccurrence.set(roundedOneRepMax, {
+  //           ...workout,
+  //           oneRepMax: roundedOneRepMax
+  //         });
+  //       }
+  //     });
+    
+  //   // Convert to array and sort by 1RM (highest first)
+  //   return Array.from(firstOccurrence.values())
+  //     .sort((a, b) => b.oneRepMax - a.oneRepMax);
+  // }, [workoutData, selectedExercise]);
 
   // Update the checkbox handler
   const handleSingleRepToggle = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -601,35 +631,7 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
             },
           }}>
             <Box sx={{ gridColumn: 'span 12', textAlign: 'center' }}>
-              <input
-                accept=".csv"
-                style={{ display: 'none' }}
-                id="raised-button-file"
-                type="file"
-                onChange={handleFileUpload}
-              />
-              <label htmlFor="raised-button-file">
-                <Button 
-                  variant="contained" 
-                  component="span" 
-                  disabled={loading}
-                  sx={{
-                    py: 1.5,
-                    px: 4,
-                    fontSize: '1.1rem',
-                    background: 'linear-gradient(45deg, #90caf9 30%, #64b5f6 90%)',
-                    boxShadow: '0 3px 5px 2px rgba(144, 202, 249, .3)',
-                    '&:hover': {
-                      background: 'linear-gradient(45deg, #64b5f6 30%, #42a5f5 90%)',
-                      transform: 'translateY(-2px)',
-                      boxShadow: '0 5px 15px rgba(144, 202, 249, .4)',
-                    },
-                    transition: 'all 0.2s ease-in-out',
-                  }}
-                >
-                  {loading ? 'Uploading...' : 'Upload Workout CSV'}
-                </Button>
-              </label>
+              {/* Removed upload button and file input */}
             </Box>
 
             <Box sx={{ gridColumn: { xs: 'span 12', md: 'span 3' } }}>
@@ -779,7 +781,7 @@ function Dashboard({ workouts, setWorkouts }: { workouts: Workout[], setWorkouts
                   borderRadius: 2,
                 }}>
                   <Typography variant="h6">
-                    No data available. Please upload a CSV file.
+                    No data available. Please upload your workout CSV from the Home page.
                   </Typography>
                 </Box>
               ) : (
