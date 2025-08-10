@@ -1,0 +1,27 @@
+# Dart/Pub related
+.dart_tool/
+.packages
+pubspec.lock
+
+# Flutter build output
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.flutter-*
+generated_plugin_registrant.dart
+
+# VS Code settings
+.vscode/
+
+# IntelliJ/Android Studio settings
+.idea/
+*.iml
+
+# Mac system files
+.DS_Store
+
+# Windows system files
+Thumbs.db
+
+# Other
+*.log
