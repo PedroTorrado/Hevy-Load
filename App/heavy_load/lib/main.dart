@@ -16,15 +16,15 @@ class MyApp extends StatelessWidget {
       title: 'Hevy-Load',
       theme: ThemeData(
         brightness: Brightness.light,
-        colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFF1976D2), brightness: Brightness.light),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue.shade400, brightness: Brightness.light),
         scaffoldBackgroundColor: Colors.white,
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
-          foregroundColor: Color(0xFF1976D2),
           elevation: 0,
           centerTitle: true,
           titleTextStyle: TextStyle(
-            color: Color(0xFF1976D2),
+            color: Color(0xFFBBDEFB),
+            fontFamily: 'Roboto',
             fontWeight: FontWeight.bold,
             fontSize: 22,
           ),
@@ -91,9 +91,10 @@ class HomePage extends StatelessWidget {
           ),
         ],
       ),
-      body: Center(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
               'Hevy-Load',
@@ -116,26 +117,20 @@ class HomePage extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 36),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _ExerciseCard(
-                  title: 'Bench Press',
-                  color: Colors.blue,
-                  icon: Icons.fitness_center,
-                ),
-                _ExerciseCard(
-                  title: 'Squat',
-                  color: Colors.red,
-                  icon: Icons.accessibility_new,
-                ),
-                _ExerciseCard(
-                  title: 'Deadlift',
-                  color: Colors.green,
-                  icon: Icons.directions_run,
-                ),
-              ],
+            const SizedBox(height: 32),
+            ExerciseCard(
+              title: 'Bench Press',
+              color: Colors.blue.shade400,
+            ),
+            const SizedBox(height: 16),
+            ExerciseCard(
+              title: 'Squat',
+              color: Colors.red,
+            ),
+            const SizedBox(height: 16),
+            ExerciseCard(
+              title: 'Deadlift',
+              color: Colors.green,
             ),
             const SizedBox(height: 40),
             Card(
@@ -151,7 +146,7 @@ class HomePage extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade700,
+                        color: Colors.blue.shade200,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -193,15 +188,18 @@ class HomePage extends StatelessWidget {
   }
 }
 
-class _ExerciseCard extends StatelessWidget {
+class ExerciseCard extends StatelessWidget {
   final String title;
   final Color color;
-  final IconData icon;
+  final double pr = 0;
+  final int reps = 0;
+  final String firstAchieved = 'N/A';
+  final String lastAchieved = 'N/A';
+  final double fontsize = 25;
 
-  const _ExerciseCard({
+  const ExerciseCard({
     required this.title,
     required this.color,
-    required this.icon,
     Key? key,
   }) : super(key: key);
 
@@ -212,27 +210,76 @@ class _ExerciseCard extends StatelessWidget {
       color: color.withOpacity(0.15),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: SizedBox(
-        width: 100,
-        height: 120,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                color: color,
+                width: 6,
+              ),
+            ),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
+            ),
+          ),
+        width: 300,
+        height: 300,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircleAvatar(
-              backgroundColor: color.withOpacity(0.2),
-              radius: 28,
-              child: Icon(icon, color: color, size: 32),
-            ),
-            const SizedBox(height: 12),
+            const SizedBox(),
             Text(
               title,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: fontsize,
                 fontWeight: FontWeight.w600,
+                color: Colors.blue.shade200,
               ),
               textAlign: TextAlign.center,
             ),
+            Text(
+              '$pr kg',
+              style: TextStyle(
+                fontSize: fontsize/0.75,
+                color: Colors.grey.shade100,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            Text(
+              '$reps rep(s)',
+              style: TextStyle(
+                fontSize: fontsize/1,
+                color: Colors.grey.shade600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            Text(
+              '_____________________________________',
+              style: TextStyle(
+                color: Colors.grey.shade800,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            Text(
+              'First Achieved: $firstAchieved',
+              style: TextStyle(
+                fontSize: fontsize/1.5,
+                color: Colors.grey.shade600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            Text(
+              'Latest PR: $lastAchieved',
+              style: TextStyle(
+                fontSize: fontsize/1.5,
+                color: Colors.grey.shade600,
+              ),
+              textAlign: TextAlign.center,
+            )
           ],
         ),
+      ),
       ),
     );
   }
