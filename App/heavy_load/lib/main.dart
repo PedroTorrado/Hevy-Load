@@ -1,19 +1,33 @@
 import 'package:flutter/material.dart';
-import 'home.dart';
 import 'dashboard.dart';
 import 'workouts.dart';
+import 'settings.dart';
 
 void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  ThemeMode _themeMode = ThemeMode.system;
+
+  void _changeTheme(ThemeMode? mode) {
+    if (mode != null) {
+      setState(() {
+        _themeMode = mode;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Hevy-Load',
       theme: ThemeData(
         brightness: Brightness.light,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue.shade400, brightness: Brightness.light),
@@ -59,35 +73,55 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      themeMode: ThemeMode.system, // <--- Force dark mode here
+      themeMode: _themeMode,
       initialRoute: '/',
       routes: {
-        '/': (context) => const HomePage(),
+        '/': (context) => HomePage(onOpenSettings: () => Navigator.pushNamed(context, '/settings')),
         '/dashboard': (context) => const DashboardPage(),
         '/workouts': (context) => const WorkoutsPage(),
+        '/settings': (context) => SettingsPage(
+          themeMode: _themeMode,
+          onThemeChanged: _changeTheme,
+        ),
       },
     );
   }
 }
 
 class HomePage extends StatelessWidget {
-  const HomePage({Key? key}) : super(key: key);
+  final VoidCallback onOpenSettings;
+
+  const HomePage({Key? key, required this.onOpenSettings}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Hevy-Load'),
+        automaticallyImplyLeading: false,
+        centerTitle: false, // Important for left alignment
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            IconButton(
+              tooltip: 'Dashboard',
+              onPressed: () => Navigator.pushNamed(context, '/dashboard'),
+              icon: const Icon(Icons.dashboard_outlined),
+            ),
+            IconButton(
+              tooltip: 'Workouts',
+              onPressed: () => Navigator.pushNamed(context, '/workouts'),
+              icon: const Icon(Icons.timeline_outlined),
+            ),
+            const SizedBox(width: 8),
+          
+            Expanded(child: SizedBox()),
+          ],
+        ),
         actions: [
           IconButton(
-            tooltip: 'Dashboard',
-            onPressed: () => Navigator.pushNamed(context, '/dashboard'),
-            icon: const Icon(Icons.dashboard_outlined),
-          ),
-          IconButton(
-            tooltip: 'Workouts',
-            onPressed: () => Navigator.pushNamed(context, '/workouts'),
-            icon: const Icon(Icons.timeline_outlined),
+            icon: const Icon(Icons.settings),
+            tooltip: 'Settings',
+            onPressed: onOpenSettings,
           ),
         ],
       ),
@@ -96,17 +130,6 @@ class HomePage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(
-              'Hevy-Load',
-              style: TextStyle(
-                fontSize: 36,
-                fontWeight: FontWeight.bold,
-                color: Colors.blue.shade700,
-                letterSpacing: 1.2,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 10),
             Text(
               'Track and visualize your workout progress',
               style: TextStyle(
@@ -171,7 +194,7 @@ class HomePage extends StatelessWidget {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const Dashboard()),
+                          MaterialPageRoute(builder: (_) => const DashboardPage()),
                         );
                       },
                       icon: const Icon(Icons.dashboard),
@@ -280,63 +303,6 @@ class ExerciseCard extends StatelessWidget {
           ],
         ),
       ),
-      ),
-    );
-  }
-}
-
-class Home extends StatelessWidget {
-  const Home({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Home'),
-      ),
-      body: const Center(
-        child: Text(
-          'Welcome to Home!',
-          style: TextStyle(fontSize: 20),
-        ),
-      ),
-    );
-  }
-}
-
-class Dashboard extends StatelessWidget {
-  const Dashboard({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-      ),
-      body: const Center(
-        child: Text(
-          'Dashboard Content Here',
-          style: TextStyle(fontSize: 20),
-        ),
-      ),
-    );
-  }
-}
-
-class Workouts extends StatelessWidget {
-  const Workouts({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Workouts'),
-      ),
-      body: const Center(
-        child: Text(
-          'Workouts Content Here',
-          style: TextStyle(fontSize: 20),
-        ),
       ),
     );
   }
