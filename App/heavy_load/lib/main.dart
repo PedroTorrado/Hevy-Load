@@ -1,10 +1,23 @@
+import 'dart:async';
+
+import 'package:heavy_load/services/database_service.dart';
+import 'package:isar/isar.dart';  // ! Import ISAR
+
 import 'package:flutter/material.dart';
 import 'dashboard.dart';
+import 'models/todo.dart';
 import 'workouts.dart';
 import 'settings.dart';
+import 'databasetest.dart';
 
-void main() {
+Future<void> main() async {
+  await _setup(); // Initialize the database service before running the app 
   runApp(const MyApp());
+}
+
+Future<void> _setup() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await DatabaseService.setup(); // ! Initialize the database service
 }
 
 class MyApp extends StatefulWidget {
@@ -15,6 +28,27 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+
+  List <Todo> todos = [];
+
+  StreamSubscription? _todoSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    DatabaseService.db.todos.buildQuery<Todo>().watch(fireImmediately: true).listen((data) {
+      setState(() {
+        todos = data;
+      });
+    });
+    // Initialize the database service
+  }
+
+  @override
+  void dispose() {
+    _todoSubscription?.cancel();
+    super.dispose();
+  }
   ThemeMode _themeMode = ThemeMode.system;
 
   void _changeTheme(ThemeMode? mode) {
@@ -79,6 +113,7 @@ class _MyAppState extends State<MyApp> {
         '/': (context) => HomePage(onOpenSettings: () => Navigator.pushNamed(context, '/settings')),
         '/dashboard': (context) => const DashboardPage(),
         '/workouts': (context) => const WorkoutsPage(),
+        '/databasetest': (context) => databasetest(todos: todos),
         '/settings': (context) => SettingsPage(
           themeMode: _themeMode,
           onThemeChanged: _changeTheme,
@@ -118,6 +153,11 @@ class HomePage extends StatelessWidget {
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.data_array),
+            tooltip: 'Database Test',
+            onPressed: () => Navigator.pushNamed(context, '/databasetest'),
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: 'Settings',
