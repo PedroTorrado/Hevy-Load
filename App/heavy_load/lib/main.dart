@@ -1,17 +1,20 @@
 import 'dart:async';
 
 import 'package:heavy_load/services/database_service.dart';
-import 'package:isar/isar.dart';  // ! Import ISAR
+import 'package:heavy_load/services/csv_importer.dart';
+import 'package:heavy_load/services/pr_service.dart';
+import 'package:isar/isar.dart'; // ! Import ISAR
 
 import 'package:flutter/material.dart';
 import 'dashboard.dart';
 import 'models/todo.dart';
+import 'models/workout.dart';
 import 'workouts.dart';
 import 'settings.dart';
 import 'databasetest.dart';
 
 Future<void> main() async {
-  await _setup(); // Initialize the database service before running the app 
+  await _setup(); // Initialize the database service before running the app
   runApp(const MyApp());
 }
 
@@ -28,27 +31,53 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-
-  List <Todo> todos = [];
+  List<Todo> todos = [];
+  List<Workout> workouts = [];
+  Map<String, Map<String, dynamic>> exercisePRs = {};
 
   StreamSubscription? _todoSubscription;
+  StreamSubscription? _workoutSubscription;
 
   @override
   void initState() {
     super.initState();
-    DatabaseService.db.todos.buildQuery<Todo>().watch(fireImmediately: true).listen((data) {
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    // Load todos
+    DatabaseService.db.todos
+        .buildQuery<Todo>()
+        .watch(fireImmediately: true)
+        .listen((data) {
       setState(() {
         todos = data;
       });
     });
-    // Initialize the database service
+
+    // Load workouts and calculate PRs
+    DatabaseService.db.workouts
+        .buildQuery<Workout>()
+        .watch(fireImmediately: true)
+        .listen((data) async {
+      setState(() {
+        workouts = data;
+      });
+      // Calculate PRs whenever workout data changes
+      final prs = await PRService.calculatePRs(DatabaseService.db);
+      setState(() {
+        exercisePRs = prs;
+      });
+    });
   }
 
   @override
   void dispose() {
     _todoSubscription?.cancel();
+    _workoutSubscription?.cancel();
     super.dispose();
   }
+
   ThemeMode _themeMode = ThemeMode.system;
 
   void _changeTheme(ThemeMode? mode) {
@@ -64,7 +93,8 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       theme: ThemeData(
         brightness: Brightness.light,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue.shade400, brightness: Brightness.light),
+        colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.blue.shade400, brightness: Brightness.light),
         scaffoldBackgroundColor: Colors.white,
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
@@ -83,7 +113,8 @@ class _MyAppState extends State<MyApp> {
       ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
-        colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFF1976D2), brightness: Brightness.dark),
+        colorScheme: ColorScheme.fromSeed(
+            seedColor: Color(0xFF1976D2), brightness: Brightness.dark),
         scaffoldBackgroundColor: const Color(0xFF181A20),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF181A20),
@@ -110,23 +141,67 @@ class _MyAppState extends State<MyApp> {
       themeMode: _themeMode,
       initialRoute: '/',
       routes: {
-        '/': (context) => HomePage(onOpenSettings: () => Navigator.pushNamed(context, '/settings')),
+        '/': (context) => HomePage(
+            onOpenSettings: () => Navigator.pushNamed(context, '/settings'),
+          ),
         '/dashboard': (context) => const DashboardPage(),
         '/workouts': (context) => const WorkoutsPage(),
         '/databasetest': (context) => databasetest(todos: todos),
         '/settings': (context) => SettingsPage(
-          themeMode: _themeMode,
-          onThemeChanged: _changeTheme,
-        ),
+              themeMode: _themeMode,
+              onThemeChanged: _changeTheme,
+            ),
       },
     );
   }
 }
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   final VoidCallback onOpenSettings;
 
   const HomePage({Key? key, required this.onOpenSettings}) : super(key: key);
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  List<Workout> workouts = [];
+  Map<String, Map<String, dynamic>> exercisePRs = {};
+  StreamSubscription? _workoutSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWorkoutData();
+  }
+
+  Future<void> _loadWorkoutData() async {
+    print("🔄 Starting to load workout data...");
+    // Load workouts and calculate PRs
+    DatabaseService.db.workouts
+        .buildQuery<Workout>()
+        .watch(fireImmediately: true)
+        .listen((data) async {
+      print("📊 Received ${data.length} workouts from database");
+      setState(() {
+        workouts = data;
+      });
+      // Calculate PRs whenever workout data changes
+      print("🧮 Calculating PRs...");
+      final prs = await PRService.calculatePRs(DatabaseService.db);
+      print("🏆 Calculated PRs for ${prs.length} exercises: ${prs.keys.toList()}");
+      setState(() {
+        exercisePRs = prs;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _workoutSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -148,7 +223,6 @@ class HomePage extends StatelessWidget {
               icon: const Icon(Icons.timeline_outlined),
             ),
             const SizedBox(width: 8),
-          
             Expanded(child: SizedBox()),
           ],
         ),
@@ -161,7 +235,7 @@ class HomePage extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: 'Settings',
-            onPressed: onOpenSettings,
+            onPressed: widget.onOpenSettings,
           ),
         ],
       ),
@@ -181,24 +255,30 @@ class HomePage extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
-            ExerciseCard(
-              title: 'Bench Press',
-              color: Colors.blue.shade400,
-            ),
-            const SizedBox(height: 16),
-            ExerciseCard(
-              title: 'Squat',
-              color: Colors.red,
-            ),
-            const SizedBox(height: 16),
-            ExerciseCard(
-              title: 'Deadlift',
-              color: Colors.green,
-            ),
+            // Display top exercises with PRs
+            ..._getTopThreeExercises().map((exerciseData) {
+              final exercise = exerciseData['name'] as String;
+              final prs = exerciseData['prs'] as Map<String, dynamic>;
+              print("🎯 Building card for $exercise: Actual 1RM ${prs['actualOneRM']}kg x 1 rep");
+              return Column(
+                children: [
+                  ExerciseCard(
+                    title: exercise,
+                    color: _getExerciseColor(exercise),
+                    pr: prs['actualOneRM']?.toDouble() ?? 0.0,
+                    reps: 1, // Always show 1 for 1RM
+                    firstAchieved: PRService.formatDate(prs['firstAchieved']),
+                    lastAchieved: PRService.formatDate(prs['actualOneRMDate']),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              );
+            }).toList(),
             const SizedBox(height: 40),
             Card(
               elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
               margin: const EdgeInsets.symmetric(horizontal: 8),
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
@@ -229,12 +309,14 @@ class HomePage extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
                       ),
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const DashboardPage()),
+                          MaterialPageRoute(
+                              builder: (_) => const DashboardPage()),
                         );
                       },
                       icon: const Icon(Icons.dashboard),
@@ -249,20 +331,89 @@ class HomePage extends StatelessWidget {
       ),
     );
   }
+
+  Color _getExerciseColor(String exercise) {
+    // Fixed colors for Big 3 exercises
+    switch (exercise) {
+      case 'Bench Press (Barbell)':
+        return Colors.blue.shade400;
+      case 'Squat (Barbell)':
+        return Colors.red;
+      case 'Deadlift (Barbell)':
+        return Colors.green;
+      default:
+        // Fallback colors for any other exercises
+        final colors = [
+          Colors.orange,
+          Colors.purple,
+          Colors.teal,
+        ];
+        final index = exercise.hashCode % colors.length;
+        return colors[index];
+    }
+  }
+
+  List<Map<String, dynamic>> _getTopThreeExercises() {
+    // Prioritize barbell versions for the main cards
+    final benchPressKey = exercisePRs.keys.firstWhere(
+      (key) => key == 'Bench Press (Barbell)',
+      orElse: () => exercisePRs.keys.firstWhere(
+        (key) => key.toLowerCase().contains('bench') || key.toLowerCase().contains('press'),
+        orElse: () => 'Bench Press',
+      ),
+    );
+    final squatKey = exercisePRs.keys.firstWhere(
+      (key) => key == 'Squat (Barbell)',
+      orElse: () => exercisePRs.keys.firstWhere(
+        (key) => key.toLowerCase().contains('squat'),
+        orElse: () => 'Squat',
+      ),
+    );
+    final deadliftKey = exercisePRs.keys.firstWhere(
+      (key) => key == 'Deadlift (Barbell)',
+      orElse: () => exercisePRs.keys.firstWhere(
+        (key) => key.toLowerCase().contains('deadlift') || key.toLowerCase().contains('dead'),
+        orElse: () => 'Deadlift',
+      ),
+    );
+
+    final benchPressPRs = exercisePRs[benchPressKey] ?? {};
+    final squatPRs = exercisePRs[squatKey] ?? {};
+    final deadliftPRs = exercisePRs[deadliftKey] ?? {};
+
+    final benchPressData = {
+      'name': benchPressKey,
+      'prs': benchPressPRs,
+    };
+    final squatData = {
+      'name': squatKey,
+      'prs': squatPRs,
+    };
+    final deadliftData = {
+      'name': deadliftKey,
+      'prs': deadliftPRs,
+    };
+
+    return [benchPressData, squatData, deadliftData];
+  }
 }
 
 class ExerciseCard extends StatelessWidget {
   final String title;
   final Color color;
-  final double pr = 0;
-  final int reps = 0;
-  final String firstAchieved = 'N/A';
-  final String lastAchieved = 'N/A';
+  final double pr;
+  final int reps;
+  final String firstAchieved;
+  final String lastAchieved;
   final double fontsize = 25;
 
   const ExerciseCard({
     required this.title,
     required this.color,
+    required this.pr,
+    required this.reps,
+    required this.firstAchieved,
+    required this.lastAchieved,
     Key? key,
   }) : super(key: key);
 
@@ -286,63 +437,72 @@ class ExerciseCard extends StatelessWidget {
               topRight: Radius.circular(16),
             ),
           ),
-        width: 300,
-        height: 300,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: fontsize,
-                fontWeight: FontWeight.w600,
-                color: Colors.blue.shade200,
+          width: 300,
+          height: 300,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: fontsize,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blue.shade200,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            Text(
-              '$pr kg',
-              style: TextStyle(
-                fontSize: fontsize/0.75,
-                color: Colors.grey.shade100,
+              Text(
+                '${pr.toStringAsFixed(1)} kg',
+                style: TextStyle(
+                  fontSize: fontsize / 0.75,
+                  color: Colors.grey.shade100,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            Text(
-              '$reps rep(s)',
-              style: TextStyle(
-                fontSize: fontsize/1,
-                color: Colors.grey.shade600,
+              Text(
+                'Estimated',
+                style: TextStyle(
+                  fontSize: fontsize / 3,
+                  color: Colors.grey.shade600,
+                  fontStyle: FontStyle.italic,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            Text(
-              '_____________________________________',
-              style: TextStyle(
-                color: Colors.grey.shade800,
+              Text(
+                '$reps rep(s)',
+                style: TextStyle(
+                  fontSize: fontsize / 1,
+                  color: Colors.grey.shade600,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            Text(
-              'First Achieved: $firstAchieved',
-              style: TextStyle(
-                fontSize: fontsize/1.5,
-                color: Colors.grey.shade600,
+              Text(
+                '_____________________________________',
+                style: TextStyle(
+                  color: Colors.grey.shade800,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            Text(
-              'Latest PR: $lastAchieved',
-              style: TextStyle(
-                fontSize: fontsize/1.5,
-                color: Colors.grey.shade600,
+              Text(
+                'First Achieved: $firstAchieved',
+                style: TextStyle(
+                  fontSize: fontsize / 1.5,
+                  color: Colors.grey.shade600,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            )
-          ],
+              Text(
+                'Latest PR: $lastAchieved',
+                style: TextStyle(
+                  fontSize: fontsize / 1.5,
+                  color: Colors.grey.shade600,
+                ),
+                textAlign: TextAlign.center,
+              )
+            ],
+          ),
         ),
-      ),
       ),
     );
   }

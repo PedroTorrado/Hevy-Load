@@ -1,6 +1,7 @@
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:heavy_load/models/todo.dart';
+import 'package:heavy_load/models/workout.dart';
 
 class DatabaseService {
 
@@ -12,6 +13,7 @@ class DatabaseService {
     db = await Isar.open(
       [
         TodoSchema,
+        WorkoutSchema,
       ],
       directory: appDir.path,
     );
