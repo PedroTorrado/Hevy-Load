@@ -16,7 +16,6 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     final workoutCount = DatabaseService.db.workouts.count();
     print("🔍 Total workouts in database: $workoutCount");
     return Scaffold(
@@ -206,9 +205,8 @@ class SettingsPage extends StatelessWidget {
             onPressed: () async {
               try {
                 // Show raw workout data
-                final allWorkouts = await DatabaseService.db.workouts
-                    .where()
-                    .findAll();
+                final allWorkouts =
+                    await DatabaseService.db.workouts.where().findAll();
                 final bigThreeWorkouts = allWorkouts
                     .where(
                       (w) =>
@@ -271,9 +269,8 @@ class SettingsPage extends StatelessWidget {
             onPressed: () async {
               try {
                 // Show all unique exercise names
-                final allWorkouts = await DatabaseService.db.workouts
-                    .where()
-                    .findAll();
+                final allWorkouts =
+                    await DatabaseService.db.workouts.where().findAll();
                 final exerciseNames = <String>{};
 
                 for (final workout in allWorkouts) {
@@ -329,9 +326,8 @@ class SettingsPage extends StatelessWidget {
             onPressed: () async {
               try {
                 // Show raw weight/rep data for Big 3 exercises
-                final allWorkouts = await DatabaseService.db.workouts
-                    .where()
-                    .findAll();
+                final allWorkouts =
+                    await DatabaseService.db.workouts.where().findAll();
                 final bigThreeWorkouts = allWorkouts
                     .where(
                       (w) =>
@@ -421,6 +417,24 @@ class SettingsPage extends StatelessWidget {
                 applicationName: 'Hevy-Load',
                 applicationVersion: '1.0.0',
                 applicationLegalese: '© 2025 Hevy-Load Team',
+              );
+            },
+          ),
+          TextField(
+              decoration: const InputDecoration(
+            labelText: 'Feedback or suggestions?',
+            hintText: 'Type your message here...',
+            border: OutlineInputBorder(),
+          )),
+          IconButton(
+            icon: const Icon(Icons.send),
+            onPressed: () {
+              // Handle feedback submission
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Feedback sent! Thank you!'),
+                  backgroundColor: Colors.green,
+                ),
               );
             },
           ),

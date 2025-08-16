@@ -94,7 +94,7 @@ class _MyAppState extends State<MyApp> {
       theme: ThemeData(
         brightness: Brightness.light,
         colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.blue.shade400, brightness: Brightness.light),
+          seedColor: Colors.blue.shade400, brightness: Brightness.light),
         scaffoldBackgroundColor: Colors.white,
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
@@ -262,15 +262,18 @@ class _HomePageState extends State<HomePage> {
               print("🎯 Building card for $exercise: Actual 1RM ${prs['actualOneRM']}kg x 1 rep");
               return Column(
                 children: [
-                  ExerciseCard(
-                    title: exercise,
-                    color: _getExerciseColor(exercise),
-                    pr: prs['actualOneRM']?.toDouble() ?? 0.0,
-                    reps: 1, // Always show 1 for 1RM
-                    firstAchieved: PRService.formatDate(prs['firstAchieved']),
-                    lastAchieved: PRService.formatDate(prs['actualOneRMDate']),
-                  ),
-                  const SizedBox(height: 16),
+                  Opacity(
+                    opacity: 0.9,
+                    child:
+                      ExerciseCard(
+                        title: exercise,
+                        color: _getExerciseColor(exercise),
+                        pr: prs['actualOneRM']?.toDouble() ?? 0.0,
+                        reps: 1, // Always show 1 for 1RM
+                        firstAchieved: PRService.formatDate(prs['firstAchieved']),
+                        lastAchieved: PRService.formatDate(prs['actualOneRMDate']),
+                    ),
+                  )
                 ],
               );
             }).toList(),

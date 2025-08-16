@@ -4,19 +4,18 @@ import 'package:heavy_load/models/todo.dart';
 import 'package:heavy_load/models/workout.dart';
 
 class DatabaseService {
-
   static late final Isar db;
 
   static Future<void> setup() async {
-    // Initialize the database connection here
     final appDir = await getApplicationDocumentsDirectory();
     db = await Isar.open(
-      [
-        TodoSchema,
-        WorkoutSchema,
-      ],
+      [TodoSchema, WorkoutSchema],
       directory: appDir.path,
     );
+  }
 
+  // Helper to get all workouts
+  static Future<List<Workout>> getAllWorkouts() async {
+    return await db.workouts.where().findAll();
   }
 }
