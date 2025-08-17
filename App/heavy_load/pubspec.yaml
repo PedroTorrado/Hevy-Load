@@ -41,6 +41,8 @@ dependencies:
   csv: ^6.0.0
   file_picker: ^10.2.4
   table_calendar: ^3.0.9
+  google_generative_ai: 0.4.7
+  flutter_markdown: ^0.6.19+1 # Use the latest version!
 
 dev_dependencies:
   flutter_test:
