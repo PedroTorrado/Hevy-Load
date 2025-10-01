@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'dart:io' show Platform;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:heavy_load/services/database_service.dart';
 import 'package:heavy_load/models/workout.dart';
 import 'package:flutter_markdown/flutter_markdown.dart'; // Import the new package
 
-// Your API key and model setup from earlier
-final apiKey = Platform.environment['AIzaSyBIn795OmiXxYmqiPTeKrWyiAt_F-T9mU4'] ?? '';
+// The API key will be loaded from a .env file at runtime.
+// Ensure you create a file at `lib/.env` with a line like: API_KEY=your_api_key_here
 
-final model = GenerativeModel(
-  apiKey: "AIzaSyBIn795OmiXxYmqiPTeKrWyiAt_F-T9mU4",
-  model: 'gemini-1.5-flash-latest', 
-);
+late final GenerativeModel model;
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({Key? key}) : super(key: key);
@@ -29,7 +27,26 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
-    _loadAndGeneratePrompt();
+    // Load environment variables first, then continue initialization.
+    _initAsync();
+  }
+
+  Future<void> _initAsync() async {
+    // Load .env from the lib/ folder by default. Adjust path if you place it elsewhere.
+    await dotenv.load(fileName: 'lib/.env');
+
+    final apiKey = dotenv.env['API_KEY'] ?? '';
+
+    // Initialize the model with the API key loaded from .env
+    // Use a supported model code. Prefer a model code that includes the
+    // 'models/' prefix, or the shorter name which the SDK will normalize.
+    // 'models/gemini-flash-latest' is available according to ListModels.
+    model = GenerativeModel(
+      apiKey: apiKey,
+      model: 'models/gemini-flash-latest',
+    );
+
+    await _loadAndGeneratePrompt();
   }
 
   Future<void> _loadAndGeneratePrompt() async {
