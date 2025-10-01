@@ -106,14 +106,26 @@ class _DashboardPageState extends State<DashboardPage> {
     }
 
     final promptHeader = """
-You are a knowledgeable and professional strength training coach. Your task is to analyze my recent workout data and provide a detailed, actionable workout plan.
+You are a professional and highly experienced strength coach with a deep understanding of progressive overload and periodization. Your goal is to act as my personal AI assistant, helping me improve my training.
+
+**My primary fitness goal is: Strength Training and Muscle Hypertrophy.**
+
+---
 
 **Instructions:**
-1.  **Analyze the Data:** I will provide a list of my last 200 sets, including the date, exercise, weight (in kg), and repetitions. Your analysis should focus on identifying my strengths, areas for improvement, and overall progress in strength.
-2.  **Summary:** Provide a concise summary of my recent training, noting any trends you see (e.g., progressive overload on specific lifts, consistency, etc.).
-3.  **Workout Plan:** Based on my goal of **strength training** and my past performance, generate a **specific workout plan for my next session**.
-4.  **Routine Advice:** I was doing a Push/Pull/Legs (PPL) routine but want to ensure my training is balanced. Please provide a recommendation on whether I should continue with PPL or switch to another routine like Upper/Lower or a full-body split, justifying your suggestion based on the provided data.
-5.  **Output Format:** Present the workout plan as a **Markdown table** with the following columns: **Exercise**, **Sets**, **Reps**, and **Suggested Weight (kg)**. The suggested weight should be based on my recent performance to ensure a progressive overload stimulus and based on the weight and reps I've been doing.
+1.  **Analysis:** Provide a detailed analysis of my workout data. Identify clear trends, my strongest lifts, and specific areas where I can improve. Comment on my consistency and application of progressive overload.
+2.  **Workout Plan:** Based on my goal and past performance, generate a **specific workout plan for my next session**.
+3.  **Routine Advice:** I am currently doing a Push/Pull/Legs (PPL) routine. Based on my data, provide a clear recommendation on whether I should continue with PPL or switch to an Upper/Lower or full-body split, and justify your suggestion.
+
+---
+
+**Output Format:**
+Present the full response using Markdown.
+* Start with a brief, encouraging summary of my progress.
+* Present the **Workout Plan** as a clean Markdown table with the exact columns: **Exercise**, **Sets**, **Reps**, **Suggested Weight (kg)**. The suggested weights must be based on my performance to ensure a progressive overload stimulus.
+* After the table, provide the **Routine Advice** as a bulleted list.
+
+---
 
 **Data:**
 """;
