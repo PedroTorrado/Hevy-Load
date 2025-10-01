@@ -1,4 +1,6 @@
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 Future<void> main() async {
@@ -10,12 +12,15 @@ Future<void> main() async {
     return;
   }
 
-  // The SDK's ApiClient is internal; create an HttpApiClient instance directly
-  final client = HttpApiClient(apiKey: apiKey);
   final uri = Uri.https('generativelanguage.googleapis.com', '/v1beta/models');
   try {
-    final response = await client.makeRequest(uri, {});
-    print(response);
+    final resp = await http.get(uri, headers: {'x-goog-api-key': apiKey});
+    if (resp.statusCode == 200) {
+      final jsonBody = json.decode(resp.body);
+      print(jsonBody);
+    } else {
+      print('HTTP ${resp.statusCode}: ${resp.body}');
+    }
   } catch (e) {
     print('Error calling ListModels: $e');
   }

@@ -12,6 +12,7 @@ import 'models/workout.dart';
 import 'workouts.dart';
 import 'settings.dart';
 import 'databasetest.dart';
+import 'next_week.dart';
 
 Future<void> main() async {
   await _setup(); // Initialize the database service before running the app
@@ -145,6 +146,7 @@ class _MyAppState extends State<MyApp> {
             onOpenSettings: () => Navigator.pushNamed(context, '/settings'),
           ),
         '/dashboard': (context) => const DashboardPage(),
+        '/nextweek': (context) => const NextWeekPage(),
         '/workouts': (context) => const WorkoutsPage(),
         '/databasetest': (context) => databasetest(todos: todos),
         '/settings': (context) => SettingsPage(
@@ -221,6 +223,11 @@ class _HomePageState extends State<HomePage> {
               tooltip: 'Workouts',
               onPressed: () => Navigator.pushNamed(context, '/workouts'),
               icon: const Icon(Icons.timeline_outlined),
+            ),
+            IconButton(
+              tooltip: 'Next Week',
+              onPressed: () => Navigator.pushNamed(context, '/nextweek'),
+              icon: const Icon(Icons.fitness_center_outlined),
             ),
             const SizedBox(width: 8),
             Expanded(child: SizedBox()),
